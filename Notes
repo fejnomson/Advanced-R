@@ -1,0 +1,4587 @@
+# Advanced R
+#
+# To record notes and scratchpad to help process the book, to refer back to
+# 	later, and to serve as a bookmark.
+#
+# Started: 2/10/2016
+# Last updated: 2/11/2016
+
+
+library(pryr)
+
+
+# There's something important about this but I don't know what ----------------
+# Maybe using a switch statement as an attribute to a timecard data object,
+# 	so you can call methods directly without get_vector() or interp().
+applyfunc <- function(a_function, a_vector) {
+	switch(a_function,
+		"Sum" = function(x) sum(x, na.rm = TRUE),
+		"Mean" = function(x) mean(x, na.rm = TRUE),
+		"Median" = function(x) median(x, na.rm = TRUE),
+		"Count" = function(x) plyr::count(a_vector),
+		"Minimum" = function(x) min(x, na.rm = TRUE),
+		"Maximum" = function(x) max(x, na.rm = TRUE)
+  )(a_vector)
+}
+applyfunc('Sum', 1:10)
+applyfunc('Count', 1:10)
+# There's something important about this but I don't know what ----------------
+
+
+# OO essentials ===============================================================
+# http://adv-r.had.co.nz/OO-essentials.html
+S3:
+
+Methods belong to generic functions; they DONT belong to objects or classes
+UseMethod(): figures out the right method to call. This is called 'method
+	dispatch'. So if you call print(letters), itll dispatch the print method
+	for vector objects.
+The job of a generic is to call the right method. So Date method for mean()
+	generic is mean.Date(); factor method for print() is print.factor().
+View methods belonging to a generic with methods(): methods('mean')
+View methods belonging to a class: methods(class='data.frame')
+General format for methods: generic.class()
+
+Two ways of defining a class:
+my_class <- structure(list(), class='my_class')
+my_class <- list()
+class(my_class) <- 'my_class'
+
+To check for inheritance:
+	inherits(x, 'classname')
+	class(my_class)
+	inherits(my_class, 'my_class')
+
+Class is a vector, describing behaviour from most to least specific. So
+	glm() object is c('glm', 'lm'), indicating that generalised linear
+	models inherit behaviour from linear models.
+
+Constructor function for S3 classes:
+	foo <- function(x) {
+		# Usually has the same name as the class.
+		if (!is.numeric(x)) stop('X must be numeric')
+		structure(list(x), class='foo')
+	}
+
+To add a new generic, make a function that calls UseMethod():
+	f <- function(x) UseMethod('f')
+Then add some methods:
+	f.a <- function(x) {
+		# So this is saying that, for the 'f' function, if the argument is of
+		# 	class 'a', print 'Class a'
+		'Class a'
+	}
+	a <- structure(list(), class='a')
+	class(a)
+	f(a)
+
+For default:
+	f.default <- function(x) "Unknown class"
+	f(structure(list(), class='a'))
+	f(structure(list(), class=c('b','a'))) # there is no b, so uses a
+	f(structure(list(), class='c')) # there is no c, so uses default
+
+
+S4:
+...
+# OO essentials ===============================================================
+
+
+
+
+
+y <- 1
+g <- function(x) {
+  y <- 2
+  UseMethod("g")
+}
+g.numeric <- function(x) y
+g(10)
+
+h <- function(x) {
+  x <- 'ooo'
+  UseMethod("h") # should be same as UseMethod(h, x), where x is the first
+	# argument of the enclosing function.
+}
+h.character <- function(x) paste("char", x)
+h.numeric <- function(x) paste("num", x)
+
+h(9)
+
+f <- function() 1
+g <- function() 2
+class(g) <- "function"
+
+class(f)
+class(g)
+
+length.function <- function(x) "function"
+length(f)
+length(g) # this returns 'function', because g() has the attribute class =
+	# 'function', so when length() dispatches to the appropriate class, it
+	# sees that there's a method for the 'function' class, then it calls that
+	# method. The function that distinguishes is the length.function()
+
+# the '...' argument
+f <- function(...) {
+  names(list(...))
+}
+f(a = 1, b = 2)
+
+f <- function(...) {
+	lapply(list(...), function(x) x + 1)
+}
+
+
+x <- sample(replace = TRUE, 20, x = c(1:10, NA))
+x <- sample(c(1:10, NA), 20, replace = TRUE)
+
+y <- runif(min = 0, max = 1, 20)
+y <- runif(20, 0, 1)
+
+cor(m = "k", y = y, u = "p", x = x)
+cor(x, y, use = 'p', method = 'kendall')
+
+f1 <- function(x = {y <- 1; 2}, y = 0) {
+  x + y
+}
+f1()
+
+y <- 1
+x = 2
+y = 0
+x + y
+
+
+f2 <- function(x = z) {
+  z <- 100
+  x
+}
+f2()
+
+# infix functions go between arguments. they start and end with '%'
+`%+%` <- function(a, b) paste0(a, b)
+"new" %+% " string"
+
+`%-%` <- function(a, b) paste0("(", a, " %-% ", b, ")")
+"a" %-% "b" %-% "c"
+'((a %-% b) %-% c)'
+
+`%||%` <- function(a, b) if (!is.null(a)) a else b
+function_that_might_return_null() %||% default value
+
+
+# replacement functions. they act like they modify an object in place
+# 	instead of copy and modify copy
+`second<-` <- function(x, value) {
+  x[2] <- value
+  x
+}
+x <- 1:10
+second(x) <- 5L
+x
+
+# Modify in place
+x <- 1:10
+address(x)
+#> [1] "0x103945110"
+x[2] <- 7L
+address(x)
+#> [1] "0x397efe0"
+
+
+`modify1<-` <- function(x, position, value) {
+  x[position] <- value
+  x
+}
+modify1(x, 1) <- 10
+x
+
+
+# Exercises
+length<-
+dimnames<-
+dim<-
+names<-
+levels<-
+colnames?
+Anything with `%...%`
+
+`%xor%` <- function(x, y) (x | y) & !(x & y)
+`%!in%` <- function(x, y) setdiff(x, y)
+`%both%` <- function(x, y) union(x, y)
+`%overlap%` <- function(x, y) intersect(x, y)
+
+`mod<-` <- function(x, value) {
+	rand_index <- sample(length(x), 1)
+	x[rand_index] <- value
+	x
+}
+x <- 1:10
+mod(x) <- 99
+
+
+# Return values
+f <- function(x) {
+  x$a <- 2
+  x
+}
+x <- list(a = 1)
+f(x)
+x$a
+
+# on exit: you can run certain code on the exit of the function. So the
+# 	function returns its one value, then you run some stuff. Like if you
+# 	change the working dir during a function, return a df, you'd set the wd
+# 	back to the original.
+f <- function(arg) {
+	val <- arg + 10
+	on.exit(cat(val, '\n'))
+	arg
+}
+f(1)
+
+
+in_dir <- function(dir, code) {
+  old <- setwd(dir)
+  print(old)
+  on.exit(setwd(old))
+
+  force(code)
+}
+getwd()
+in_dir("~", getwd())
+getwd()
+
+in_dir()
+
+
+# ENVIRONMENTS ================================================================
+globalenv() # this is the interactive workspace. The parent of this is the
+	# environment of the last loaded package.
+baseenv() # the environment of the base package
+emptyenv() # empty environment; the ancestor of all environments
+environment() # the current environment
+
+search() # lists all parents of the global environment
+as.environment('package:stats') # to access an environment in the search list
+
+e <- new.env() # to make a new environment manually
+parent.env(e)
+ls(e)
+
+e$a <- 1 # modify the bindings of the environment, like you would a list
+e$b <- 2
+ls(e)
+e$a
+
+e$.a <- 2 # ls() doesn't show names that start with '.'; need all.names=T
+ls(e)
+ls(e, all.names = TRUE)
+
+ls.str(e) # to show that object IN ITS ENVIRONMENT
+str(e)
+
+e$c <- 3 # more ways of accessing objects
+e$c
+e[['c']]
+get('c', envir=e)
+
+e <- new.env() # need to use rm() to remove a binding from an environment; can't just set it to NULL like other objects.
+e$a <- 1
+e$a <- NULL
+ls(e)
+rm('a', envir = e)
+ls(e)
+
+x <- 10 # determine if a binding exists in an environment with exists()
+exists('x', envir = e) # this looks in each environment up thru parent
+exists('x', envir = e, inherits = FALSE) # this only looks in 'e' environ; doesn't go up through other environs looking for a match
+
+identical(globalenv(), environment()) # to compare environs
+
+my_search <- function() {
+	this_env <- globalenv()
+	envs <- vector()
+	while(!identical(this_env, emptyenv())) {
+		this_env <- parent.env(this_env)
+		this_name <- environmentName(this_env)
+		envs <- c(envs, this_name)
+	}
+	envs
+}
+
+x <- 5 # get the environ of something
+where('x')
+where('mean')
+
+ls(e, all.names = TRUE) # return all environs w/a binding or name
+where_mod <- function(name, env = parent.frame()) {
+  if (identical(env, emptyenv())) {
+    # Base case
+    stop("Can't find ", name, call. = FALSE)
+    
+  } else if (exists(name, envir = env, inherits = FALSE)) {
+    # Success case
+    env
+    
+  } else {
+    # Recursive case
+    where(name, parent.env(env))
+    
+  }
+}
+where_mod('mean')
+where_mod('group_by')
+where_mod('mtcars')
+
+get_mod <- function(name, env = parent.frame()) {
+  if (identical(env, emptyenv())) { # 
+    # Base case
+    stop("Can't find ", name, call. = FALSE)
+    
+  } else if (exists(name, envir = env, inherits = FALSE)) {
+    # Success case
+    env[[name]]
+    
+  } else {
+    # Recursive case
+    get_mod(name, parent.env(env))
+    
+  }
+}
+get_mod('mean') # should be in 'baseenv' or something similar
+get_mod('group_by') # should be in dplyr or something similar 
+get_mod('mtcars')
+
+fget <- function(name, env = parent.frame()) {
+  if (identical(env, emptyenv())) { # 
+    # Base case
+    stop("Can't find ", name, call. = FALSE)
+    
+  } else if (exists(name, envir = env, inherits = FALSE) &
+  					 is.function(env[[name]])) {
+    # Success case
+    env[[name]]
+    
+  } else {
+    # Recursive case
+    get_mod(name, parent.env(env))
+    
+  }
+}
+fget('mtcars') # should be in 'baseenv' or something similar
+fget('group_by') # should be in dplyr or something similar 
+
+
+y <- 1
+f <- function(x) x + y
+environment(f)
+
+e <- new.env()
+e$g <- function(x) x
+
+
+g <- function(x) {
+  if (!exists("a", inherits = FALSE)) {
+    message("Defining a")
+    a <- 1
+  } else {
+    a <- a + 1
+  }
+  a
+}
+g(10)
+g(10)
+
+
+h <- function(x) {
+  a <- 2
+  x + a
+}
+y <- h(1)
+
+
+plus <- function(x) {
+  function(y) x + y
+}
+plus_one <- plus(1)
+identical(parent.env(environment(plus_one)), environment(plus))
+
+
+h <- function() {
+  x <- 10
+  function() {
+    x
+  }
+}
+i <- h()
+x <- 20
+i()
+
+
+f2 <- function() {
+  x <- 10
+  function() {
+    def <- get("x", environment())
+    cll <- get("x", parent.frame())
+    list(defined = def, called = cll)
+  }
+}
+g2 <- f2()
+x <- 20
+str(g2())
+
+
+x <- 0
+y <- 10
+f <- function() {
+  x <- 1
+  g()
+}
+g <- function() {
+  x <- 2
+  h()
+}
+h <- function() {
+  x <- 3
+  x + y
+}
+f()  # 'sb' 3 + 10
+
+
+f1 <- function(x1) {
+  f2 <- function(x2) {
+    f3 <- function(x3) {
+      x1 + x2 + x3
+    }
+    f3(3) # returns x1 + x2 + 3
+  }
+  f2(2) # returns x1 + 2 + 3
+}
+f1(1) # returns 1 + 2 + 3
+
+
+x <- 0
+f <- function() {
+  x <<- 1
+}
+f()
+x
+
+assign('jeff', 10) # equivs
+jeff <- 10
+
+# delayed binding: evaluates argument after a certain amount of time
+
+x %a-% runif(1) # active binding: re-computes every time you call the object
+makeActiveBinding('x', runif(1))
+x
+x
+# This might be good for dates, where you'd want an object to reflect the
+# 	latest date or time every time you call it.
+makeActiveBinding('a', function() as.character(today()), parent.frame())
+bindingIsActive('a', env = parent.frame())
+
+rebind <- function(name, value, env = parent.frame()) {
+	# This checks to see if an object exists, by moving up the environment
+	# 	hierarchy recursively.
+  if (identical(env, emptyenv())) {
+    stop("Can't find ", name, call. = FALSE)
+  } else if (exists(name, envir = env, inherits = FALSE)) {
+    assign(name, value, envir = env)
+  } else {
+    rebind(name, value, parent.env(env))
+  }
+}
+rebind("a", 10)
+a <- 5
+rebind("a", 10)
+a
+
+assign_mod <- function(name, value, env = parent.frame()) {
+	# Assigns a var, only if there isn't already a var assigned to the name.
+  if (identical(env, emptyenv())) {
+  	assign(name, value, envir = globalenv())
+  } else if (exists(name, envir = env, inherits = FALSE)) {
+    stop("Name already assigned ", name, call. = FALSE)
+  } else {
+    rebind(name, value, parent.env(env))
+  }
+}
+assign_mod('a', 10)
+assign_mod('ba', 10)
+
+# lock an environment
+e <- new.env() # need to use rm() to remove a binding from an environment; can't just set it to NULL like other objects.
+e$a <- 1
+e$b <- 2
+e$c <- function(x, y) {x + y}
+e$d <- with(e, c(a, b))
+ls(e)
+lockEnvironment(e) # application: you can't ruin the environment that packages like dplyr rely on
+e$j <- with(e, a + b)
+environmentIsLocked(e)
+
+
+# lock a binding. So that you can't change or alter an object.
+assign('myvar', 'jeff', envir = parent.frame())
+lockBinding('myvar', env = parent.frame())
+myvar <- 'monson'
+bindingIsLocked('myvar', env = parent.frame())
+unlockBinding('myvar', env = parent.frame())
+rm('myvar', envir = parent.frame()) # but I guess you can still remove it.
+
+# Idea: use the assign() function to make a 'variable factory' instead of a
+# 	function factory.
+assign(paste0('my', 1, 'var'), 'jeff', envir = parent.frame())
+
+# Explicit environments
+# reference semantics: when you modify something instead of copying it and
+# 	changing the copy. Changes to environments involve reference semantics
+# 	-- you don't copy the entire environment.
+modify <- function(x) {
+  x$a <- 2
+  invisible()
+}
+x_l <- list() # doens't change the x_1 list, it'd return a copy if you wanted.
+x_l$a <- 1
+modify(x_l)
+x_l$a
+x_e <- new.env() # does change the environ
+x_e$a <- 1
+modify(x_e)
+x_e$a # the modify function actual changes 'a' component of input arg
+
+# you can use a list or an environment to pass data between functions
+x <- 1
+e1 <- new.env()
+get("x", envir = e1) # so this one looks up x in the global environment,
+# 	even though we only want it to look in the 'e1' environment.
+e2 <- new.env(parent = emptyenv()) # This one looks up x in the e2
+# 	environment, and only goes up through that environment. It won't look
+# 	for x's in current environments.
+get("x", envir = e2)
+
+# package state
+my_env <- new.env(parent = emptyenv())
+my_env$a <- 1
+get_a <- function() {
+  my_env$a
+}
+set_a <- function(value) {
+  old <- my_env$a
+  my_env$a <- value
+  invisible(old)
+}
+# ENVIRONMENTS ================================================================
+
+
+
+
+# Exceptions and Debugging ====================================================
+stop() # for fatal errors; function stops running
+warning() # display potential problem
+message() # to give info to user that's easy for them to suppress if they
+	# don't want it.
+
+f <- function(a) g(a)
+g <- function(b) h(b)
+h <- function(c) i(c)
+i <- function(d) "a" + d
+f(10)
+traceback()
+
+
+# stopped here: mimicking the interactive debugger from RStudio in the normal GUI.
+# I don't understand this at all, but skipping for now.
+browseOnce <- function() {
+  old <- getOption("error")
+  function() {
+    options(error = old)
+    browser()
+  }
+}
+options(error = browseOnce())
+f <- function() stop("!")
+# Enters browser
+f()
+# Runs normally
+f()
+
+
+show_condition <- function(code) {
+	# matches the condition from the input with the output.
+  tryCatch(code,
+    error = function(c) "error",
+    warning = function(c) "warning",
+    message = function(c) "message"
+  )
+}
+show_condition(stop("!"))
+#> [1] "error"
+show_condition(warning("?!"))
+#> [1] "warning"
+show_condition(message("?"))
+show_condition(10)
+
+
+# defensive programming
+# 1) be strict on input you accept into functions
+# 2) Avoid NSE functions: subset, transform, with
+# 3) Avoid functions that return different types of output depending on the
+# 	type of input, like `[` and sapply.
+# Anything that isn't interactive should be super strict
+col_means <- function(df) {
+	# OLD, BAD
+	# df <- head(iris)
+  numeric <- sapply(df, is.numeric)
+  numeric_cols <- df[, numeric]
+
+  data.frame(lapply(numeric_cols, mean))
+}
+col_means <- function(df) {
+	# GOOD, NEW
+	# df <- head(iris)
+	# df <- mtcars2
+  numeric <- vapply(df, is.numeric, TRUE)
+  out <- lapply(df[numeric], mean)
+  as.data.frame(out)
+}
+col_means(mtcars)
+col_means(mtcars[, 0])
+col_means(mtcars[0, ])
+col_means(mtcars[, "mpg", drop = F])
+col_means(1:10)
+col_means(as.matrix(mtcars)) # ?
+col_means(as.list(mtcars))
+mtcars2 <- mtcars
+mtcars2[-1] <- lapply(mtcars2[-1], as.character)
+col_means(mtcars2)
+
+lag <- function(x, n = 1L) { # still haven't worked thru all the error handling and debugging. I think stop() is fine for now.
+	# To 'lag' behind a vector by a certain number of values
+	stopifnot(is.vector(x))
+
+  xlen <- length(x)
+  if (n >= xlen) return(rep(NA, n))
+  c(rep(NA, n), x[seq_len(xlen - n)])
+}
+lag(mtcars)
+lag(mtcars$mpg, n=5L)
+lag(mtcars$mpg[seq_len(5)], n=5L)
+# Exceptions and Debugging ====================================================
+
+
+
+# Functional Programming ======================================================
+set.seed(1014)
+df <- data.frame(replicate(6, sample(c(1:10, -99), 6, rep = TRUE)))
+names(df) <- letters[1:6]
+df
+
+
+fix_val <- function(x, new_val=NA) {
+	function(y) {
+		y[y == x] <- new_val
+		y
+	}
+}
+fix99s <- fix_val(-99) # use a closer to generate the function
+with99s <- vapply(df, function(x) any(x == -99), TRUE) # vapply accross all cols to find -99s. Could use a closure for this as well.
+out <- df
+out[with99s] <- lapply(df[with99s], fix99s)
+out
+
+
+mean(df$a)
+median(df$a)
+sd(df$a)
+mad(df$a)
+IQR(df$a)
+
+mean(df$b)
+median(df$b)
+sd(df$b)
+mad(df$b)
+IQR(df$b)
+
+descrip <- function(num_vect) {
+	# The 'list' you're applying a 'function' to is a bunch of functions, and
+	# 	the 'function' you're applying is basically a vector.
+	funs <- c(mean,median,sd,mad,IQR)
+
+	# mean(df$a)
+	# for (i in list) {
+	# 	outlist[[i]] <- f(list[[i]], args)
+	# }
+	# for (i in list) {
+	# 	outlist[[i]] <- df$a(mean)
+	# }
+	# for (i in list) {
+	# 	outlist[[i]] <- mean(df$a)
+	# }
+	# mean(1:10, na.rm=T)
+	# median(1:10, na.rm=T)
+	# ...
+
+	lapply(funs, function(x) x(num_vect, na.rm = TRUE))
+}
+descrip(df$a)
+descrip(df$b)
+lapply(df, descrip) # mind-warping
+
+
+# Bad?
+integrate(function(x) x ^ 2 - x, 0, 10)
+integrate(function(x) sin(x) + cos(x), -pi, pi)
+integrate(function(x) exp(x) / x, 10, 20)
+
+# Bettter?
+ins <- list(
+	para = c(function(x) x ^ 2 - x, 0, 10),
+	sincos = c(function(x) sin(x) + cos(x), -pi, pi),
+	expon = c(function(x) exp(x) / x, 10, 20)
+)
+lapply(ins, function(x) integrate(x[[1]], x[[2]], x[[3]]))
+ins <- list(
+	para = list(
+		expresh = function(x) x ^ 2 - x,
+		lower = 0,
+		upper = 10
+		),
+	sincos = list(
+		expresh = function(x) sin(x) + cos(x),
+		lower = -pi,
+		upper = pi
+		),
+	expon = list(
+		expresh = function(x) exp(x) / x, 
+		lower = 10, 
+		upper = 20
+		)
+)
+lapply(ins, function(x) integrate(x$expresh, x$lower, x$upper))
+
+
+#  lists of functions: for keeping related functions together
+compute_mean <- list(
+  base = function(x) mean(x),
+  sum = function(x) sum(x) / length(x),
+  manual = function(x) {
+    total <- 0
+    n <- length(x)
+    for (i in seq_along(x)) {
+      total <- total + x[i] / n
+    }
+    total
+  }
+)
+x <- runif(1e5)
+lapply(compute_mean, function(f) f(x))
+lapply(compute_mean, function(f) system.time(f(x)))
+
+x <- 1:10
+funs <- list(
+  sum = sum,
+  mean = mean,
+  median = median
+)
+lapply(funs, function(f) f(x, na.rm = TRUE))
+
+simple_tag <- function(tag) {
+	# force() changes a variable into the value that it's storing. If there
+	# 	is no value, it'll throw an error. So force(mean) will return the
+	# 	mean() function, but force(dkdkdkd) will return an error.
+	# One would use force() here to make sure that you aren't feeding an
+	# 	empty argument into the closure function being defined; if you did,
+	# 	you'd get an error when you call it, which is better than legally
+	# 	defining the function and getting an error every time you call it.
+	force(tag)
+	function(...) {
+		paste0('<', tag, '>', paste0(...), '<', tag, '>')
+	}
+}
+tags <- c('p', 'b', 'i')
+html <- lapply(setNames(tags, tags), simple_tag)
+
+html$p('This is ', html$b('bold'), ' Text.')
+
+with(html, p('This is ', b('bold'), ' Text.'))
+
+# ATTACHES ALL ELEMENTS IN THE html LIST TO THE SEARCH PATH, SO YOU DON'T
+# 	NEED TO CALL html$ EVERY TIME.
+attach(html)
+p('This is ', b('bold'), ' Text.')
+detach(html)
+
+# COPY ALL ELEMENTS IN A LIST TO THE CURRENT ENVIRONMENT, SO YOU DON'T NEED
+# 	TO CALL html$ EVERY TIME. Then remove them.
+list2env(html, environment())
+p('This is ', b('bold'), ' Text.')
+rm(list = names(html), envir = environment())
+
+
+# An alternative to summary()
+x <- 1:10
+mysum <- function(x) {
+	funs <- list(
+		min = min,
+	  median = median,
+	  max = max
+	)
+	lapply(funs, function(f) f(x, na.rm = TRUE))
+}
+mysum(x)
+
+
+# Case study: numerical integration
+midpoint_composite <- function(f, a, b, n = 10) {
+	f <- sin
+	a <- 0
+	b <- pi
+	n <- 10
+
+	points <- seq(a, b, length = n + 1)
+	h <- (b - a) / n
+
+	area <- 0
+	for (i in seq_len(n)) {
+		area <- area + h * f((points[i] + points[i + 1]) / 2)
+	}
+	area
+}
+trapezoid_composite <- function(f, a, b, n = 10) {
+	points <- seq(a, b, length = n + 1)
+	h <- (b - a) / n
+
+	area <- 0
+	for (i in seq_len(n)) {
+		area <- area + h / 2 * (f(points[i]) + f(points[i + 1]))
+	}
+	area
+}
+midpoint_composite(sin, 0, pi, n = 10)
+midpoint_composite(sin, 0, pi, n = 100)
+trapezoid_composite(sin, 0, pi, n = 10)
+trapezoid_composite(sin, 0, pi, n = 100)
+
+composite <- function(f, a, b, n = 10, rule) {
+  points <- seq(a, b, length = n + 1)
+
+  area <- 0
+  for (i in seq_len(n)) {
+    area <- area + rule(f, points[i], points[i + 1])
+  }
+
+  area
+}
+midpoint <- function(f, a, b) {
+  (b - a) * f((a + b) / 2)
+}
+trapezoid <- function(f, a, b) {
+  (b - a) / 2 * (f(a) + f(b))
+}
+composite(sin, 0, pi, n = 10, rule = midpoint)
+composite(sin, 0, pi, n = 10, rule = trapezoid)
+
+...continued at home...
+
+# 4.
+bootstraps <- lapply(1:10, function(i) {
+  rows <- sample(1:nrow(mtcars), rep = TRUE)
+  mtcars[rows, ]
+})
+lapply(bootstraps, function(x) lm(mpg ~ disp))
+
+# Functional Programming ======================================================
+
+
+
+
+
+
+
+# Split-apply-combine 'by hand' -----------------------------------------------
+cars <- mtcars[order(mtcars$cyl), ]
+sac_first <- function(dataframe, index_col, value_col) {
+	cars <- dataframe
+
+	splitted <- split(cars, cars[[index_col]])
+	applied <- lapply(splitted, function(x) `[`(x, 1, value_col))
+	combined <- unsplit(applied, unique(cars[[index_col]]), drop=TRUE)
+	combined <- data.frame(index_col = unique(cars[[index_col]]), value_col = combined)
+	colnames(combined) <- c(index_col, value_col)
+
+	combined
+}
+sac_first(cars, 'cyl', c('mpg', 'am'))
+
+sac_gen <- function(dataframe, index_col, value_col, func) {
+	cars <- dataframe
+
+	splitted <- split(cars, cars[[index_col]])
+	applied <- lapply(splitted, func)
+	combined <- unsplit(applied, unique(cars[[index_col]]), drop=TRUE)
+	combined <- data.frame(index_col = unique(cars[[index_col]]), value_col = combined)
+	colnames(combined) <- c(index_col, value_col)
+
+	combined
+}
+sac_gen(cars, 'cyl', 'mpg', function(x)`[`(x, 1, 'mpg'))
+# Split-apply-combine 'by hand' -----------------------------------------------
+
+
+findInterval() for segment indexes instead of looping
+
+# For generating data frames without re-assigning -----------
+x <- data.frame(matrix(NA, nrow=nrow(mtcars), ncol=ncol(mtcars)))
+x[1:3, ] <- mtcars[1:3, ]
+colnames(x) <- colnames(mtcars)
+# -----------------------------------------------------------
+
+# for making summary tables in exposure workbooks? ----------
+x <- data.frame(matrix(NA, nrow=nrow(mtcars), ncol=ncol(mtcars)))
+x[2:6, 3:4] <- mtcars[2:6, 3:4]
+x[NA] <- ""
+# -----------------------------------------------------------
+
+
+
+
+
+
+
+# SPLIT APPLY COMBINE ---------------------------------------------------------
+# by hand
+splitted <- split(iris$Sepal.Length, iris$Species)
+applied <- lapply(splitted, mean)
+combined <- stack(applied)
+combined
+
+# tapply: groups by one vector at a time
+tapply(iris$Sepal.Length, iris$Species, mean)
+
+# aggregate: same function to every column
+aggregate(iris[-5], iris['Species'], mean)
+
+# tapply: from ARP ------------------------------
+# A first call
+ages <- c(25, 26, 55, 37, 21, 42)
+affils <- c('R', 'D', 'D', 'R', 'U', 'D')
+tapply(ages, affils, mean)
+
+# For intuition
+tply <- c(mean(ages[which(affils == 'R')]),
+          mean(ages[which(affils == 'D')]),
+          mean(ages[which(affils == 'U')]))
+names(tply) <- c('R', 'D', 'U')
+tply
+
+# Mult factors (grouping fields == factors)
+#   tapply(field to compute on, grouping fields, function)
+tapply(mtcars$mpg, list(mtcars$cyl, mtcars$am), mean)
+# Can't do this: tapply(list(mtcars$mpg, mtcars$cyl), mtcars$am, mean); 
+#   can only process one vector of values at a time; first argument must be
+#   a vector and nothing else (which is dumb).
+tapply(df$overtime, list(df$emplid, df$workweek), sum)
+# tapply: from ARP ------------------------------
+
+# split: from ARP -------------------------------
+# Finds indexes of each unique val within a vector, return a list where
+#   element name is unique val and element value is vector of values
+#   belonging to that unique val.
+split(ages, affils)
+# This one has the indexes where each group appears.
+split(seq_len(length(affils)), affils)
+# split: from ARP -------------------------------
+
+# by: from ARP ----------------------------------
+# I still don't understand this, and don't know if i need to
+by(mtcars, mtcars$cyl, function(x) mean(mtcars[["mpg"]]))
+
+by(iris, iris$Species, function(x) mean(iris[]))
+# by: from ARP ----------------------------------
+
+
+aggregate(mtcars, mtcars['cyl'], function(x) x[1])
+aggregate(mtcars, mtcars['cyl'], function(x) x[length(x)])
+
+group <- c('cyl', 'am')
+comps <- setdiff(colnames(mtcars), group)
+aggregate(mtcars[comps], mtcars[gs], function(x) x[1])
+aggregate(mtcars[comps], mtcars[gs], function(x) x[length(x)])
+
+# FROM 3/2/2016 STUDY =============================
+# by() processes each data frame as a WHOLE, so the function must be for
+#   data frame input.
+# This is tapply() 'type apply' applied to ONE data frame instead of ONE
+#   vector.
+by(mtcars, mtcars$cyl, function(x) x[1, ])
+by(mtcars, mtcars$cyl, function(x) x[nrow(x), ])
+foo <- by(mtcars, mtcars[c('cyl', 'am')], function(x) x[nrow(x), ])
+plyr::rbind.fill(foo)
+
+# aggregate() processes each column within each data frame, so the function
+#   must be for vector input. Note that you can name the grouping field
+aggregate(mtcars, list(Cylendars = mtcars$cyl), function(x) x[1])
+aggregate(mtcars, list(Cylendars = mtcars$cyl), function(x) x[length(x)])
+
+# I think by() is faster -- you don't need to work on each column
+#   individually. Still, wondering if it makes sense to just use plyr/dplyr
+#   and use the escape hatch and summarise_each(funs='first'). It's so
+#   popular, it's fast...
+plyr::ddply(mtcars, c('cyl', 'am'), function(x) x[1, ])
+firstrow <- function(x) x[1, ]
+mtcars %>% group_by(cyl, am) %>% do(firstrow(.))
+dots <- lapply(c('cyl', 'am'), as.symbol)
+mtcars %>% group_by_(.dots = dots) %>% do(firstrow(.))
+mtcars %>% group_by_(.dots = dots) %>% do(.[1, ]) # .[1, ] same as x[1, ]
+
+lastrow <- function(x) x[nrow(x), ]
+mtcars %>% group_by_(.dots = dots) %>% do(lastrow(.))
+mtcars %>% group_by_(.dots = dots) %>% do(.[nrow(.), ])
+# FROM 3/2/2016 STUDY =============================
+
+sp <- split(mtcars, mtcars$cyl)
+ap <- lapply(sp, function(x) x[1, ])
+unstack(ap)
+
+# before reshape?
+stack
+unstack
+# SPLIT APPLY COMBINE ---------------------------------------------------------
+
+
+# Parallel --------------------------------------------------------------------
+library(parallel)
+cores <- detectCores(); cores
+cluster <- makePSOCKcluster(cores)
+# parLapply(_cluster_, _inlist_, _function_)
+parLapply(cluster, mtcars, mean)
+parLapplyLB(cluster, mtcars, mean) # load-balancing
+lapply(mtcars, mean)
+clusterMap(
+  cluster, 
+  function(x, y) seq_len(x) + y, 
+  c(a = 1, b = 2, c = 3), 
+  c(A = 10, B = 0, C = -10)
+)
+Map(
+  function(x, y) seq_len(x) + y, 
+  c(a = 1, b = 2, c = 3), 
+  c(A = 10, B = 0, C = -10)
+)
+
+# You might have to send objects from global environment to clusters
+# Might only be necessary if I want to send object that aren't in the
+#   global environment to each worker node.
+object1 <- function(x) some_result <- x + 10; some_result
+object2 <- list(jeff = 'monson', dog = 'solomon')
+clusterExport(cluster, c('object1', 'object2'))
+
+stopCluster(cluster) # not sure what this does
+# Parallel --------------------------------------------------------------------
+
+# Compile ---------------------------------------------------------------------
+x <- compiler::cmpfun(get_manager_added)
+# Compile ---------------------------------------------------------------------
+
+
+# diff() ---------------------
+# Would be useful for rolling apply functions, breaks, etc.
+x <- 1:10
+lag <- 2
+n <- 10
+
+(1+lag):n
+x[(1+lag):n]
+
+1:(n-lag)
+x[1:(n-lag)]
+
+x[(1+lag):n] - x[1:(n-lag)]
+# diff() ---------------------
+
+
+# Rolling apply algo ----------------------------------------------------------
+# Maybe use this as alternative to flatten-apply-expand
+df <- data.frame(
+  emplid = c(rep(99999, 4), rep(66666, 4)),
+  ins = ymd_hm(rep(c('2016-01-01 09:00', '2016-01-01 12:30'), 4)),
+  outs = ymd_hm(rep(c('2016-01-01 12:00', '2016-01-01 05:00'), 4)),
+  in_type = rep(c('Shift In', 'Break In'), 4),
+  out_type = rep(c('Break Out', 'Shift Out'), 4),
+  ix_shift = sort(rep(1:4, 2)),
+  ix_seg = rep(1:2, 4)
+)
+df$ix_shift <- paste(df$emplid, df$ix_shift, sep = '-')
+df$ix_seg <- paste(df$ix_shift, df$ix_seg, sep = '-')
+# Count number of breaks in worked shift
+
+
+# Get number of hours in worked shift
+
+df <- df
+f_ix_seg <- 'ix_seg'
+f_out_type <- 'out_type'
+
+count_breaks <- function(df, f_ix_seg, f_out_type) {
+  df$ix_shift <- df[[f_ix_seg]] %>% ix_split('shift', keep_id = TRUE)
+
+  num <- vapply(
+    unique(df$ix_shift), 
+    function(i) sum(df$ix_shift == i & df[[f_out_type]] == 'Break Out'),
+    numeric(1)
+  )
+
+  flat <- data.frame(paste0(names(num), '-1'), num)
+  colnames(flat) <- c(f_ix_seg, 'breaks_count')
+  
+  merge(flat, df, by = f_ix_seg, all = TRUE) %>% ix_sort(f_ix_seg
+    ) %>% `[[`('breaks_count')
+}
+
+
+
+locs <- unique(df[[f_ix_shift]])
+count_breaks <- function(i) {
+  out <- rep(NA, nrow(df))
+  val <- sum(df[[f_ix_shift]] == i & df[[f_out_type]] == 'Break Out')
+  out[1] <- val
+  out
+}
+count_breaks(df[[f_ix_shift]] == 1)
+num <- vapply(
+  locs, 
+  count_breaks,
+  numeric(1)
+)
+# Rolling apply algo ----------------------------------------------------------
+
+
+
+# plyr::mapvalues() -----------------------------------------------------------
+letters
+plyr::mapvalues(
+  letters, 
+  from = c('a', 'c', 'e'),
+  to = c('999', '999', '999')
+)
+Map( # I guess this stores output in a list, instead of modifying letters
+  # in place and returning letters
+  function(x, y) letters[letters == x] <- y,
+  c('a', 'c', 'e'),
+  c('999', '666', '555')
+)
+# This works because of modify in place.
+lets <- letters
+x <- c('a', 'c', 'e')
+y <- c('999', '666', '555')
+for (i in 1:3) lets[lets == x[i]] <- y[i]
+# plyr::mapvalues() -----------------------------------------------------------
+
+
+
+# READING 3/6/2016 ============================================================
+# Dplyr reading ---------------------------------------------------------------
+# Looks like you can use dplyr on data.table objects, which is cool
+
+# identical test, igoring row or column order.
+all.equal(mtcars_df, scramble(mtcars_df), ignore_col_order = FALSE)
+all.equal(mtcars_df, scramble(mtcars_df), ignore_row_order = FALSE)
+
+# instead of rbind and cbind
+bind_rows(mtcars, mtcars) # this is better than plyr::rbind.fill
+bind_cols(mtcars, mtcars)
+# columns don't need to match when rbinding
+bind_rows(data.frame(x = 1:3), data.frame(y = 1:4))
+
+# do(): basically lapply(list_of_dfs, function) %>% plyr::rbind.fill()
+by_cyl <- group_by(mtcars, cyl)
+do(by_cyl, head(., 2))
+temp <- function(x) x[1, ]
+do(by_cyl, temp(.))
+temp2 <- function(x) x[nrow(x), ]
+do(by_cyl, temp2(.))
+# alternatively
+do(by_cyl, head(., 1))
+do(by_cyl, tail(., 1))
+do(by_cyl, nrow(.))
+
+# figure out dots
+# .dots Used to work around non-standard evaluation. See vignette("nse")
+#   for details.
+filter(.data, ...)
+filter_(.data, ..., .dots)
+
+# get groups from grouped df
+grouped <- group_by(mtcars, cyl)
+groups(grouped)
+groups(ungroup(grouped))
+
+# super powerful; get indexes, lengths, etc., of groups
+group_indices(mtcars, cyl)
+group_size(group_by(mtcars, cyl))
+n_groups(group_by(mtcars, cyl))
+attributes(group_by(mtcars, cyl)) # this is interesting
+attributes(group_by(mtcars, cyl))$indices
+attributes(group_by(mtcars, cyl))$labels
+attributes(group_by(mtcars, cyl))$group_sizes
+
+# You can use group_by attributes so you don't need to do by hand
+ats <- attributes(group_by(mtcars, cyl))
+mtcars[vapply(ats$indices, '[[', integer(1), 1) + 1, ] # indecies are ordinal, not cardinal, which is annoying
+mtcars[vapply(ats$indices, function(x) x[length(x)], integer(1)) + 1, ]
+mtcars[vapply(ats$indices, length, integer(1)), ] # length in each group
+
+# Useful, but why not sure if that much better than doing by hand
+lead(1:10, 1)
+lead(1:10, 2)
+lag(1:10, 1)
+lead(1:10, 1)
+
+# Useful, but not hugely advantageous for me
+n_distinct(c(letters, letters)) # faster than length(unique(<arg>))
+
+# Rowwise
+df <- expand.grid(x = 1:3, y = 3:1)
+df %>% rowwise() %>% do(i = seq(.$x, .$y))
+.Last.value %>% summarise(n = length(i))
+
+# makes df of every permutation
+expand.grid(x = 1:3, y = 3:1)
+
+# use mutate() instead of lapply?
+mutate_each(data, ymd, <date fields>)
+# Dplyr reading ---------------------------------------------------------------
+# READING 3/6/2016 ============================================================
+
+
+
+# For loop functionals: exercises ---------------------------------------------
+# 1
+vapply(mtcars, sd, numeric(1))
+num_cols <- vapply(iris, is.numeric, logical(1))
+vapply(iris[num_cols], sd, numeric(1))
+
+# 2
+sapply(iris, class)
+# If a column has multiple classes, sapply will return multiple values for
+#   one input. So you'd get a list instead of a vector for output, and each
+#   list element could have different lengths.
+
+# 3
+trials <- replicate(
+  100, 
+  t.test(rpois(10, 10), rpois(7, 10)),
+  simplify = FALSE
+)
+sapply(trials, function(x) x[['p.value']])
+sapply(trials, function(x) x$p.value)
+sapply(trials, `[[`, 3)
+sapply(trials, `[[`, 'p.value')
+
+# 4
+?replicate
+x <- 1:10
+replicate(10, mean(x))
+sapply(1:10, function(y) mean(x))
+
+# 5 Implement a version of lapply() that supplies FUN with both the name
+#   and the value of each component.
+# ...skipping 5 thru 7...
+# For loop functionals: exercises ---------------------------------------------
+
+
+
+# Manipulating matrices and data frames ---------------------------------------
+# apply(); doens't have a simplify argument, so you don't know what output
+#   you're going to get.
+a <- matrix(1:20, nrow = 5)
+a1 <- apply(a, 1, identity)
+identical(a, a1)
+identical(a, t(a1))
+a2 <- apply(a, 2, identity)
+identical(a, a2)
+
+# sweep()
+x <- matrix(rnorm(20, 0, 10), nrow = 4)
+x1 <- sweep(x, 1, apply(x, 1, min), `-`)
+x2 <- sweep(x1, 1, apply(x1, 1, max), `/`)
+sweep(x, 1, c(10, 20, 30, 40), `-`) # this means: take matrix x, subtract
+#   10 from every element in the first row, subtract 20 from every element
+#   in the second row, subtract 30 from every element in the 3rd row,
+#   subtract 40 from every element in the 4th row.
+sweep(x, 2, c(10, 20, 30, 40, 50), `-`) # subtract 10 from the first col,
+#   20 from the 2nd col, 30 from the 3rd col, 40 from the 5th col, 50 from
+#   the 6th col.
+sweep(mtcars, 2, apply(mtcars, 2, mean), `/`) # divide every obs in every
+#   column in mtcars by its mean.
+
+# outer()
+outer(1:3, 1:10, '*') # multiply every element in the first vect by every
+#   element in the second vect, store in matrix.
+outer(month.abb, 1999:2003, FUN = "paste") # it's kinda similar to for(i in x) { for j in y( ... )}; just stores in a matrix
+
+# group apply
+pulse <- round(rnorm(22, 70, 10 / 3)) + rep(c(0, 5), c(10, 12))
+group <- rep(c("A", "B"), c(10, 12))
+tapply(pulse, group, length)
+tapply(pulse, group, mean)
+split(pulse, group)
+tapply2 <- function(x, group, f, ..., simplify = TRUE) {
+  pieces <- split(x, group)
+  sapply(pieces, f, simplify = simplify)
+}
+tapply2(pulse, group, length)
+tapply2(pulse, group, mean)
+
+# exercises
+# 1 named vector
+
+# 2; probably useful? I tend to keep these steps separate. I guess it'd
+#   force the output to be more clearly expressed.
+tapply3 <- function(x, group, f, val, ..., simplify = TRUE) {
+  pieces <- split(x, group)
+  vapply(pieces, f, val, ...)
+}
+tapply3(pulse, group, length, numeric(1))
+tapply3(pulse, group, mean, numeric(1))
+
+# 3
+split(
+  c(1, 2, 3, 4),
+  c('M', 'M', 'F', 'F')
+)
+x <- c(1, 2, 3, 4)
+group <- c('M', 'M', 'F', 'F') 
+rsplit <- function(x, group) {
+  uqs <- unique(group)
+  names(uqs) <- uqs
+  lapply(uqs, function(i) x[group == i])
+}
+rsplit(x, group)
+# Manipulating matrices and data frames ---------------------------------------
+
+
+
+# Manipulation lists ----------------------------------------------------------
+# Reduce
+Reduce2 <- function(f, x) {
+  out <- x[[1]]
+  for(i in seq(2, length(x))) {
+    out <- f(out, x[[i]])
+  }
+  out
+}
+
+l <- replicate(5, sample(1:10, 15, replace = T), simplify = FALSE)
+str(l)
+# get numbers that are in all elements of l
+intersect(intersect(intersect(intersect(l[[1]], l[[2]]), l[[3]]), l[[4]]), l[[5]])
+Reduce(intersect, l)
+
+# Predicate
+Filter() # basically `[[`
+Find() # basically vect[vect == cond][1]; returns element itself
+Find(function(x) x == 'b', letters)
+Find(function(x) x == 'b', c(rep('a', 5), rep('b', 5), rep('c', 5)))
+Position() # returns position of first element that matches (or last element)
+where <- function(f, x) {
+  # make logical vector from a list and a predicate
+  vapply(x, f, logical(1))
+}
+df <- data.frame(x = 1:3, y = factor(c("a", "b", "c")))
+where(is.factor, df)
+Filter(is.factor, df)
+Filter(is.numeric, iris) %>% head()
+str(Filter(is.factor, df))
+str(Find(is.factor, df))
+Position(is.factor, df)
+
+# Exercises
+# 1; because it's not a mode? you can't have a vector of mode NA, like you
+#   can with logical, character, etc.
+# because it returns a true or false for everything in a vector, not one single value.
+is.logical(TRUE)
+is.na(NA)
+df <- data.frame(x = 1:3, y = c(NA, NA, NA))
+Filter(is.na, df)
+Filter(is.integer, df)
+Find(is.na, df)
+Position(is.na, df)
+
+# 2
+q2 <- function(df, f, ...) {
+  vapply(Filter(is.numeric, df), f, numeric(1), ...)
+}
+q2(iris, mean)
+q2(iris, mean, na.rm = TRUE)
+
+# 3
+which(is.numeric(iris))
+which(LETTERS == 'R')
+which(ll <- c(TRUE, FALSE, TRUE, NA, FALSE, FALSE, TRUE))
+names(ll) <- letters[seq(ll)]
+  # which returns the indexes of matches. Doesn't seem to work on dfs?
+  #   Works on vectors.
+match('a', letters) # this is which(letters == 'a')[1], but faster
+fours <- mtcars == 4
+mtcars[fours]
+which(fours, arr.ind = TRUE)
+which(fours, arr.ind = FALSE)
+
+Position(is.numeric, iris)
+Position(is.factor, iris)
+Position(function(x) x == 'b', letters)
+  # Position only gets first index of match. Works on lists.
+
+# 4
+Any <- function(a_list, pred_func) {
+  if(length(Filter(pred_func, a_list)) > 0) TRUE else FALSE
+}
+All <- function(a_list, pred_func) {
+  if(length(Filter(pred_func, a_list)) == length(a_list)) TRUE else FALSE
+}
+Any(iris, is.numeric)
+All(iris, is.numeric)
+Any(mtcars, is.character)
+All(mtcars, is.numeric)
+
+# 5
+span <- function(a_list, a_pred) {
+  # a_list <- iris
+  # a_pred <- is.factor
+
+  logs <- vapply(a_list, a_pred, logical(1))
+  runs <- rle(logs)
+
+  max_run <- max(runs$lengths[runs$values])
+  # location is the sum of the run lengths up until max run occurs
+  loc <- which(runs$lengths == max_run)
+  start <- if (loc == 1) {
+    1
+  } else {
+    sum(runs$lengths[1:loc - 1]) + 1
+  }
+
+  start:(start + max_run - 1)
+}
+test_list <- mtcars
+test_list[, 1] <- 'test'
+span(test_list, is.numeric)
+span(test_list, is.character)
+span(iris, is.numeric)
+span(iris, is.factor)
+# Manipulation lists ----------------------------------------------------------
+
+
+
+# Mathematical functionals ----------------------------------------------------
+integrate # area under curve of function
+unitroot # where function hits zero
+optimise # location of lowest or highest value of function
+integrate(sin, 0, pi)
+str(uniroot(sin, pi*c(1/2,3/2)))
+str(optimise(sin, c(0,2*pi)))
+str(optimise(sin, c(0, pi), maximum = TRUE))
+
+poisson_nll <- function(x) {
+  n <- length(x)
+  sum_x <- sum(x)
+  function(lambda) {
+    n*lambda - sum_x * log(lambda)
+  }
+}
+x1 <- c(41, 30, 31, 38, 29, 24, 30, 29, 31, 38)
+x2 <- c(6, 4, 7, 3, 3, 7, 5, 2, 2, 7, 5, 4, 12, 6, 9)
+nll1 <- poisson_nll(x1)
+nll2 <- poisson_nll(x2)
+optimise(nll1, c(0, 100))$minimum
+optimise(nll2, c(0, 100))$minimum
+
+# 1
+arg_factory <- function(type) {
+  function(vect, f) {
+    apd <- vapply(vect, f, numeric(1))
+    vect[which(apd == type(apd))]
+  }
+}
+arg_max <- arg_factory(max)
+arg_min <- arg_factory(min)
+arg_max(-10:5, function(x) x ^ 2)
+arg_max(-5:5, function(x) x ^ 2)
+arg_min(-10:5, function(x) x ^ 2)
+arg_min(-5:5, function(x) x ^ 2)
+# 2: not spending time on this
+# Mathematical functionals ----------------------------------------------------
+
+
+
+# Loops left as is ------------------------------------------------------------
+# This:
+trans <- list(
+  disp = function(x) x * 0.0163871,
+  am = function(x) factor(x, levels = c("auto", "manual"))
+)
+for(var in names(trans)) {
+  mtcars[[var]] <- trans[[var]](mtcars[[var]])
+}
+# Not this:
+lapply(names(trans), function(var) {
+  mtcars[[var]] <<- trans[[var]](mtcars[[var]])
+})
+
+# recursion:
+#   use first_vect[i - 1] and second_vect[i - 1] to assign output_vect[i]
+#   Similar to vectorise, iMinus1, etc?
+exps <- function(x, alpha) {
+  s <- numeric(length(x) + 1)
+  for (i in seq_along(s)) {
+    if (i == 1) {
+      s[i] <- x[i]
+    } else {
+      s[i] <- alpha * x[i - 1] + (1 - alpha) * s[i - 1]
+    }
+  }
+  s
+}
+x <- runif(6)
+exps(x, 0.5)
+
+# While loops
+# More general than for loops because for for loops, you kneed to know how
+#   many iterations in advance. For while, you don't need to know.
+for (i in 1:10) print(i)
+i <- 1
+while(i <= 10) {
+  print(i)
+  i <- i + 1
+}
+# diff number of iterations, e.g.
+i <- 0
+while(TRUE) {
+  if (runif(1) > 0.9) break
+  i <- i + 1
+}
+# Loops left as is ------------------------------------------------------------
+
+
+
+# Family of functions ---------------------------------------------------------
+# The point here is to start with simple, bug-free building blocks, like
+#   add() and rm_na(), to make a suite of powerful functions.
+# It's interesting that you can do almost any type of `+` operation just by
+#   adding wrappers that call functionals, like Map, vapply, and Reduce.
+add <- function(x, y) {
+  # Base function
+  stopifnot(length(x) == 1, length(y) == 1, is.numeric(x), is.numeric(y))
+  x + y
+}
+
+rm_na <- function(x, y, identity) {
+  # helper function for NA handling
+  if (is.na(x) && is.na(y)) {
+    identity
+  } else if (is.na(x)) {
+    y
+  } else {
+    x
+  }
+}
+rm_na(NA, 10, 0)
+rm_na(10, NA, 0)
+rm_na(NA, NA, 0)
+add <- function(x, y, na.rm = FALSE) {
+  # With NA handling
+  if (na.rm && (is.na(x) || is.na(y))) rm_na(x, y, 0) else x + y
+}
+add(10, NA)
+add(10, NA, na.rm = TRUE)
+add(NA, NA)
+add(NA, NA, na.rm = TRUE)
+
+r_add <- function(xs, na.rm = TRUE) {
+  # Handle more than 2 numbers at a time
+  Reduce(function(x, y) add(x, y, na.rm = na.rm), xs)
+}
+r_add(c(1, 4, 10))
+r_add(NA, na.rm = TRUE) # Bad; output should be same mode as input
+r_add(numeric()) # Bad
+
+r_add <- function(xs, na.rm = TRUE) {
+  # to handle Bad cases from above; tell reduce what do to
+  Reduce(function(x, y) add(x, y, na.rm = na.rm), xs, init = 0)
+}
+r_add(c(1, 4, 10))
+r_add(NA, na.rm = TRUE)
+r_add(numeric())
+
+v_add1 <- function(x, y, na.rm = FALSE) {
+  # add two vectors element-wise using Map()
+  stopifnot(length(x) == length(y), is.numeric(x), is.numeric(y))
+  if (length(x) == 0) return(numeric())
+  simplify2array(
+    Map(function(x, y) add(x, y, na.rm = na.rm), x, y)
+  )
+}
+v_add2 <- function(x, y, na.rm = FALSE) {
+  # add two vectors element-wise using vapply()
+  stopifnot(length(x) == length(y), is.numeric(x), is.numeric(y))
+  vapply(seq_along(x), function(i) add(x[i], y[i], na.rm = na.rm), numeric(1))
+}
+v_add1(1:10, 1:10)
+v_add2(1:10, 1:10)
+v_add1(numeric(), numeric())
+v_add1(c(1, NA), c(1, NA))
+v_add1(c(1, NA), c(1, NA), na.rm = TRUE)
+
+c_add <- function(xs, na.rm = FALSE) {
+  # cumulative sum. Note that you accumulate while reducing
+  Reduce(function(x, y) add(x, y, na.rm = na.rm), xs, accumulate = TRUE)
+}
+c_add(1:10)
+c_add(10:1)
+
+row_sum <- function(x, na.rm = FALSE) {
+  # run add accross rows
+  apply(x, 1, add, na.rm = na.rm)
+}
+col_sum <- function(x, na.rm = FALSE) {
+  # run add accross cols
+  apply(x, 2, add, na.rm = na.rm)
+}
+arr_sum <- function(x, dim, na.rm = FALSE) {
+  # run add accross dims
+  apply(x, dim, add, na.rm = na.rm)
+}
+
+# exercises
+# 1 ---------------------------------------------
+rm_na <- function(x, y, identity) {
+  # helper function for NA handling
+  if (is.na(x) && is.na(y)) {
+    identity
+  } else if (is.na(x)) {
+    y
+  } else {
+    x
+  }
+}
+compare_factory <- function(operator, identity) {
+  function(x, y, na.rm = FALSE) {
+    stopifnot(length(x) == 1, length(y) == 1)
+    if (na.rm && (is.na(x) || is.na(y))) {
+      rm_na(x, y, identity)
+    } else if (operator(x, y)) {
+      x 
+    } else {
+      y
+    }
+  }
+}
+smaller <- compare_factory(`<`, Inf)
+larger <- compare_factory(`>`, -Inf)
+
+smaller(1, 2)
+larger(1, 2)
+smaller(10, 2)
+larger(10, 2)
+smaller(10, NA)
+smaller(10, NA, na.rm = TRUE)
+smaller(NA, NA, na.rm = TRUE)
+smaller(10, NA, na.rm = TRUE)
+
+# pmin() pmax() equivalent
+p_smlr <- function(..., na.rm = FALSE) {
+  Reduce(function(x, y) smaller(x, y, na.rm = na.rm), c(...), accumulate = FALSE)
+}
+p_smlr(c(1, 2, 3), c(1, 4, 5))
+p_lrgr <- function(..., na.rm = FALSE) {
+  Reduce(function(x, y) larger(x, y, na.rm = na.rm), c(...), accumulate = FALSE)
+}
+p_lrgr(c(1, 2, 3), c(1, 4, 5))
+# 2nd shot
+pmin2 <- function(..., na.rm = FALSE) {
+  h <- Map(p_smlr, ..., na.rm = na.rm)
+  simplify2array(h)
+}
+pmin2(c(1, 2, 3), c(1, 4, 5))
+pmax2 <- function(..., na.rm = FALSE) {
+  h <- Map(p_lrgr, ..., na.rm = na.rm)
+  simplify2array(h)
+}
+pmax2(c(1, 2, 3), c(1, 4, 5))
+
+# DIDN'T KNOW THIS COULD HANDLE AN ARBITRARY NUMBER OF INPUT DATA
+Map(
+  function(x, y, z) x + y + z,
+  list(1, 2, 3),
+  list(1, 2, 3),
+  list(1, 2, 3)
+)
+
+# row_min() and max
+row_factory <- function(func) {
+  function(df, na.rm) {
+    apply(df, 2, func, na.rm = na.rm)
+  }
+}
+row_min <- row_factory(p_smlr)
+row_max <- row_factory(p_lrgr)
+row_min(mtcars, na.rm = FALSE)
+row_min(mtcars, na.rm = TRUE)
+row_max(mtcars, na.rm = FALSE)
+row_max(mtcars, na.rm = TRUE)
+# 1 ---------------------------------------------
+
+
+# 2
+...
+
+# 3
+...
+# Family of functions ---------------------------------------------------------
+
+
+
+
+
+# FUNCTION OPERATORS ==========================================================
+# GENERAL TEMPLATE ---------------------------
+funop <- function(f, otherargs) {
+  function(...) {
+    # Lazy evaluation can make things weird; you want to make sure you have
+    #   and are using the argument you think you are, hence force()
+    force(f) 
+    
+    # maybe do something
+    
+    res <- f(...)
+    
+    # maybe do something else
+    
+    res
+  }
+}
+# GENERAL TEMPLATE ---------------------------
+
+chatty <- function(f) {
+  function(x, ...) {
+    res <- f(x, ...)
+    cat('Processing ', x, '\n', sep = '')
+    res
+  }
+}
+f <- function(x) x ^ 2
+s <- c(3, 2, 1)
+chatty(f)(1)
+
+vapply(s, chatty(f), numeric(1))
+
+
+chatty(mean)(c(1, 2, 3))
+first <- function(x) x[1]
+chatty(first)(letters)
+last <- function(x) x[length(x)]
+chatty(last)(letters)
+sapply(
+  list(c(1, 2, 3), letters), 
+  chatty(first)
+)
+
+# I'm wondering if the intuition here is something like: you can store
+#   arguments in a closure, so you can call the closure instead of writing
+#   out tons of lengthy anonymous functions.
+myfo <- function(f) {
+  function(x, ...) {
+    res <- f(x, ...)
+    res
+  }
+}
+myfo(sum)(c(1, 2, NA, 3), na.rm = TRUE)
+myfo <- function(f) {
+  function(x, ...) {
+    res <- f(x, na.rm = TRUE, ...)
+    res
+  }
+}
+myfo(sum)(c(1, 2, NA, 3))
+myfo(mean)(c(1, 2, NA, 3))
+vapply(
+  list(c(1, 2, NA, 3), c(3, NA, 2, 1)),
+  myfo(mean),
+  numeric(1)
+)
+vapply(
+  list(c(1, 2, NA, 3), c(3, NA, 2, 1)),
+  myfo(sum),
+  numeric(1)
+)
+# instead of
+vapply(
+  list(c(1, 2, NA, 3), c(3, NA, 2, 1)),
+  function(x) sum(x, na.rm = TRUE),
+  numeric(1)
+)
+vapply(
+  list(c(1, 2, NA, 3), c(3, NA, 2, 1)),
+  function(x) mean(x, na.rm = TRUE),
+  numeric(1)
+)
+
+# behavioral FOs --------------------------
+# Old:
+i <- 1
+for(url in urls) {
+  i <- i + 1
+  if (i %% 10 == 0) cat('.')
+  Sys.delay(1)
+  download_file(url)
+}
+# New:
+lapply(
+  urls,
+  dot_every(10, delay_by(1, download_file))
+)
+delay_by <- function(delay, f) {
+  function(...) {
+    # call the delay function
+    Sys.sleep(delay)
+    # then call the function you really want to call
+    f(...)
+  }
+}
+dot_every <- function(n, f) {
+  i <- 1
+  function(...) {
+    if (i %% n == 0) cat('.')
+    i <<- i + 1
+    f(...)
+  }
+}
+x <- lapply(1:100, runif)
+x <- lapply(1:100, dot_every(10, runif))
+# so final is:
+download_file <- function(url, ...) {
+  download.file(url, basename(url), ...)
+}
+download <- dot_every(10, delay_by(1, download_file))
+
+# memoisation
+# definition: to modify a function to automatically cache its results
+slow_function <- function(x) {
+  Sys.sleep(1)
+  10
+}
+system.time(slow_function())
+system.time(slow_function())
+fast_function <- memoise(slow_function)
+system.time(fast_function())
+system.time(fast_function())
+# Memoisation stores the input and output of a function, so that if you
+#   call it again, you don't need to start over from scratch; you can just
+#   pull the results from memory.
+# So a good example would be in computing a fibonacci series; instead of
+#   recomupting 1, 2, and 3 first values to get the fourth, you'd just pull
+#   the already-computed values from the 3rd call.
+fib <- function(n) {
+  if (n < 2) return(1)
+  fib(n - 2) + fib(n - 1)
+}
+fib(0)
+fib(1)
+fib(2)
+fib(3)
+fib(4)
+fib(5)
+# You are re-computing fib() for each number with every recursive call
+system.time(fib(23))
+system.time(fib(24))
+# So that you aren't re-computing fib() for each number with every
+#   recurisive call
+fib2 <- memoise(function(n) {
+  if (n < 2) return(1)
+  fib2(n - 2) + fib2(n - 1)
+})
+system.time(fib2(23))
+system.time(fib2(24))
+# To avoid having to re-compute delay_by() for every calll
+download <- dot_every(10, memoise(delay_by(1, download_file)))
+
+
+
+dot_every2 <- function(f, int) {
+  force(f)
+  i <- 1
+  function(...) {
+    i <<- i + 1
+    if (i %% int == 0) cat('.\n')
+    f(...)
+  }
+}
+mymean <- dot_every2(mean, 3)
+mymean(1:3)
+mymean(c(2, 3, NA, 4), na.rm = FALSE)
+mymean(c(2, 3, NA, 4), na.rm = TRUE)
+vapply(
+  list(1:3, 4:6, 7:9, 10:12),
+  dot_every2(mean, 2),
+  numeric(1)
+)
+# instead of
+vapply(
+  list(1:3, 4:6, 7:9, 10:12),
+  function(x) {
+    # something gross that keeps track of where you are in the list...
+    mean
+  },
+  numeric(1)
+)
+
+
+delay_by2 <- function(f, secs) {
+  function(...) {
+    Sys.sleep(secs)
+    f(...)
+  }
+}
+mean_del <- delay_by2(mean, 3)
+mean_del(1:3)
+delay_by2(mean, 3)(1:3)
+vapply(
+  list(1:3, 4:6, 7:9),
+  delay_by2(mean, 3),
+  numeric(1)
+)
+# or
+delay_mean <- delay_by2(mean, 3)
+vapply(
+  list(1:3, 4:6, 7:9),
+  delay_mean,
+  numeric(1)
+)
+# instead of
+vapply(
+  list(1:3, 4:6, 7:9),
+  function(x) {
+    Sys.sleep(3)
+    mean(x)
+  },
+  numeric(1)
+)
+
+
+remember <- function() {
+  # THIS IS REALLY INTERESTING
+  # This function initializes a list in the parent environment of the
+  #   function call.
+  # Then every time you call it, it'll return a function that'll append the
+  #   input arguments to the list, stored in the parent environment.
+  memory <- list()
+  f <- function(...) {
+    memory <<- append(memory, list(...))
+    invisible()
+  }
+  structure(f, class = 'remember')
+}
+example_stuff <- remember()
+example_stuff(mtcars, letters, 1:10)
+
+as.list.remember <- function(x, ...) {
+  # This is a method for converting 'remember' class object to a list.
+  # It basically just accesses the list called 'memory' in the environment
+  #    of the original remember() call.
+  environment(x)$memory
+}
+print.remember <- function(x, ...) {
+  # This is just a print method for 'remember' class objects.
+  # By calling as.list(), it gets the memory list of the environment of the
+  #   remember() call, then calls str() on that object.
+  cat('Remembering...\n')
+  str(as.list(x))
+}
+locs <- remember() # makes a container to hold contents, called 'loc'
+vals <- remember() # makes a container to hold contents, called 'vals'
+zero <- uniroot(
+  # You're calling g() a bunch of times within the -5 to 5 interval,
+  #   and storing the input value using remember() via locs, and storing
+  #   the output value using remember() via vals, before and after each
+  #   call to g().
+  tee(g, locs, vals), c(-5, 5)
+)
+
+
+# An example of using tee() and remember() in a practical setting:
+#   [1] use a function operator as the function input into a functional
+#      (instead of an anonymous function)
+#   [2] use function operators to store input and output before and after
+#       the main function call
+#   (I have no idea how you'd write this without FOs)
+input <- remember()
+output <- remember()
+subset2 <- function(ix) `[`(letters, ix)
+vapply(
+  seq_along(letters),
+  tee(subset2, input, output),
+  character(1)
+)
+
+
+# Capturing function invocations
+# tee(): to see what's happening in function calls
+ignore <- function(...) NULL
+# ignore() is a function that takes a bunch of arguments and returns NULL.
+#   Why do you need a function for this, instead of just having it be NULL?
+#   I think it's so that you can easily swap ignore() for a function that
+#     actually does things. So it's like from ignore() to cat() without
+#     changing the structure of tee() or having a bunch of messy control
+#     flow.
+tee <- function(f, on_input = ignore, on_output = ignore) {
+  function(...) {
+    on_input(...)
+    output <- f(...)
+    on_output(output)
+    output
+  }
+}
+tee_default <- function(f, on_input = ignore, on_output = ignore) {
+  function(...) {
+    ignore(...)
+    output <- f(...)
+    ignore(output)
+    output
+  }
+}
+tee_cat <- function(f, on_input = cat, on_output = cat) {
+  function(...) {
+    cat(...)
+    output <- f(...)
+    cat(output)
+    output
+  }
+}
+tee(mean)
+tee(mean)(1:5)
+tee(mean, on_input = show_x, on_output = show_x)
+tee(mean, on_input = show_x, on_output = show_x)(1:5)
+tee(mean, on_input = show_x)(1:5)
+
+
+g <- function(x) cos(x) - x
+zero <- uniroot(g, c(-5, 5))
+show_x <- function(x, ...) cat(sprintf("%+.08f", x), "\n")
+zero <- uniroot(tee(g, on_input = show_x), c(-5, 5))
+zero <- uniroot(tee(g, on_output = show_x), c(-5, 5))
+# This is super confusing and i SHOULD figure it all out, but I also don't
+#   need to worry about this right now.
+# It's good to know that you can capture the intermediate stuff, store it,
+#   print it, plot it; and it's good to know that you can add fun little
+#   things before or after a function call per function operators. BUT i
+#   don't think i can figure all this out right now.
+
+
+show_x2 <- function(x, ...) cat(x, "\n")
+show_x3 <- function(x, ...) cat(x, "\n\n")
+vapply(
+  list(1, 'a', 2, 'b', FALSE),
+  tee(is.numeric, on_input = show_x2, on_output = show_x3),
+  logical(1)
+)
+
+delay_by <- function(f, delay) {
+  force(f)
+  function(...) {
+    Sys.sleep(delay)
+    f(...)
+  }
+}
+delay_by(mean, 1)
+funs <- list(mean = mean, sum = sum)
+funs_m <- lapply(funs, delay_by, delay = 1)
+funs_m$mean(1:10)
+
+
+# EXERCISES =============
+# 1 ==============
+store_call_info <- function(f) {
+  memory <- list()
+  
+  structure(function(...) {
+    memory <<- append(
+      memory, list(timestamp = now(), message = 'Function call success.')
+    )
+    f(...)
+  }, class = 'call_info')
+}
+
+as.list.call_info <- function(x) {
+  environment(x)$memory
+}
+print.call_info <- function(x) {
+  as.list(x)
+}
+mean2 <- store_call_info(mean)
+mean2(1:10)
+mean2(100:200)
+mean2 %>% print()
+# 1 ==============
+
+
+# 2 ===================================================
+f <- function(g) {
+  force(g)
+  result <- NULL
+  function(...) {
+    if (is.null(result)) {
+      result <<- g(...)
+    }
+    result
+  }
+}
+runif2 <- f(runif)
+runif2(5)
+runif2(10)
+
+# first run -----
+f <- mean
+... <- 1:3
+
+result <- NULL
+function(1:3) {
+  if (TRUE) {
+    result <<- mean(1:3)
+  }
+  2
+}
+# first run -----
+
+# second run ----
+result == 2
+function(...) {
+  if (FALSE) {
+
+  }
+  2
+}
+# second run ----
+
+# So basically you define the function, and it stores the output the first
+#   time you run it. Then, for every subsequent call, you return the
+#   results of the first call.
+# This is really interesting, because you're really relying on the feature
+#   of R that it creates a new environment for every function definition,
+#   and you can store, manipulate, and retreive data from that place,
+#   that's super specific to that function.
+# A good name would be something like: call_first()
+
+mean2 <- f(mean)
+mean2(`:`(1, 10))
+mean2(`:`(1, 100))
+mean2(`:`(1, 1000))
+# 2 ===================================================
+
+
+# 3 ===================================================
+delay_by <- function(secs, f) {
+  
+  timestamp_of_last_run <- NULL
+
+  function(...) {
+    if (!is.null(timestamp_of_last_run)) {
+      delay <- as.numeric(difftime(
+        now(), timestamp_of_last_run, units = 'secs'
+      ))
+      Sys.sleep(max(secs - delay, 0))
+    }
+    timestamp_of_last_run <<- now()
+    f(...)
+  }
+
+}
+mean_d10 <- delay_by(10, mean)
+mean_d10(1:10)
+mean_d10(1:100)
+mean_d10(1:1000)
+
+sum_d5 <- delay_by(5, sum)
+sum_d5(1:10)
+sum_d5(1:100)
+
+vapply(
+  # kind of stupid example, but...
+  seq_len(10),
+  delay_by(2, mean),
+  numeric(1)
+)
+# 3 ===================================================
+
+
+# 4 ===================================================
+wait_until <- function(execution_time, f) {
+
+  function(...) {
+    delay <- as.numeric(difftime(
+      execution_time, now(), units = 'secs'
+    ))
+    Sys.sleep(max(delay, 0))
+    f(...)
+  }
+
+}
+mean_wait1 <- wait_until(now() + seconds(30), mean)
+mean_wait1(1:10)
+mean_wait1(1:100)
+mean_wait1(1:1000)
+# 4 ===================================================
+
+
+# 5 ===================================================
+download <- memoise(dot_every(10, delay_by(1, download_file)))
+download <- dot_every(10, memoise(delay_by(1, download_file)))
+download <- dot_every(10, delay_by(1, memoise(download_file)))
+
+delay_by3 <- function(secs, f) {
+  function(...) {
+    Sys.sleep(secs)
+    f(...)
+  }  
+}
+
+mean_organic <- delay_by3(5, mean)
+mean_memoised <- memoise::memoise(delay_by3(5, mean))
+mean_memoised2 <- delay_by3(5, memoise::memoise(mean))
+
+# you have to wait for all of these
+mean_organic(1:10)
+mean_organic(1:100)
+mean_organic(1:10)
+
+# the memoise call renders the delay_by() moot
+mean_memoised(1:10)
+mean_memoised(1:100)
+mean_memoised(1:10)
+
+# mean() is memoised, delay_by() still works
+mean_memoised2(1:10)
+mean_memoised2(1:100)
+mean_memoised2(1:10)
+# 5 ===================================================
+
+
+# 6 ===================================================
+# Because it appends to a list, so it has to copy everything in the list to
+#   a new list with each function call.
+remember <- function() {
+  memory <- list()
+  f <- function(...) {
+    memory <<- append(memory, list(...))
+    invisible()
+  }
+  structure(f, class = 'remember')
+}
+example_stuff <- remember()
+example_stuff(mtcars, letters, 1:10)
+
+remember2 <- function() {
+  memory <- list()
+  f <- function(...) {
+    # Option 1: access the list in the parent environment, then set the
+    #   variable names in the object. Like mtcars['cyl'] <- letters
+    memory <<- append(memory, list(...))
+    invisible()
+  }
+  structure(f, class = 'remember')
+}
+
+
+
+==WANT NAMES OF ... ARG, TO PASS TO ENVIRONMENT==
+# dots2names() ----------------------------------------------------------------
+# 
+# Examples:
+# dots2names(mtcars, letters)
+# dots2names(letters, mtcars)
+# test_function <- function(...) {
+#   args <- list(...)
+#   names(args) <- dots2names(...)
+#   args
+# }
+# test_function(mtcars, letters, 1:10)
+# 
+dots2names <- function(...) {
+  # To convert dots to character vector of argument names
+  vapply(
+    substitute(list(...))[-1],
+    deparse,
+    character(1)
+  )
+}
+# dots2names() ----------------------------------------------------------------
+
+
+remember3 <- function() {
+  memory <- new.env()
+  f <- function(...) {
+    # Option 2: save memory as an environment, then add the arguments to
+    #   the environment
+    objects <- list(...)
+    names(objects) <- dots2names(...)
+    list2env(objects, envir = memory)
+    invisible()
+  }
+  structure(f, class = 'remember')
+}
+example_stuff2 <- remember3()
+example_stuff2(mtcars, letters, 1:10)
+example_stuff2(iris, LETTERS)
+out <- as.list.environment(environment(example_stuff2)$memory)
+
+locs2 <- remember3()
+vals2 <- remember3()
+zero2 <- uniroot(tee(g, locs2, vals2), c(-5, 5))
+as.list.environment(environment(locs2)$memory)
+as.list.environment(environment(vals2)$memory)
+
+
+as.list.remember <- function(x, ...) {
+  environment(x)$memory
+}
+print.remember <- function(x, ...) {
+  cat('Remembering...\n')
+  str(as.list(x))
+}
+locs <- remember() # makes a container to hold contents, called 'loc'
+vals <- remember() # makes a container to hold contents, called 'vals'
+zero <- uniroot(tee(g, locs, vals), c(-5, 5))
+# Not completely sure if this is good, but...
+# 6 ===================================================
+
+
+# 7 ===================================================
+# return a linear function with slope a and intercept b.
+f <- function(a, b) {
+  function(x) a * x + b
+}
+f <- function(a, b) {
+  
+  force(a)
+  force(b)
+
+  function(x) {
+    a*x + b
+  }
+
+}
+
+# create a list of functions with different parameters.
+fs <- Map(f, a = c(0, 1), b = c(0, 1))
+
+# fs is a list of functions, where it takes 
+#   0, multiplies by x, then adds 1
+#   0, multiplies by x, then adds 1
+#   and returns into a list.
+fs[[1]](0)
+fs[[1]](1)
+fs[[1]](2)
+fs[[1]](3) # everything should return 1!
+# a is probably zero
+# b is probably zero
+
+fs[[2]](0)
+fs[[2]](1)
+fs[[2]](2)
+fs[[2]](3) # everything should return 1!
+# a is probably 1
+# b is probably 1
+
+# 7 ===================================================
+# behavioral FOs --------------------------
+
+
+# output FOs ------------------------------
+Negate <- function(f) {
+  force(f)
+  function(...) !f(...)
+}
+Negate(is.numeric)(mtcars)
+vapply(
+  mtcars,
+  Negate(is.numeric),
+  logical(1)
+)
+
+compact <- function(x) Filter(Negate(is.null), x)
+
+failwith <- function(default = NULL, f, quiet = FALSE) {
+  force(f)
+  function(...) {
+    out <- default
+    # So this'll only reassign out if the expression input doesn't throw an
+    #   error.
+    # So if f(...) throws an error upon evaluation, you just return out as
+    #   it's already assigned, so it returns the default value.
+    try(out <- f(...), silent = quiet)
+    out
+  }
+}
+log('a')
+failwith(NA, log)('a')
+log2 <- failwith(NA, log)
+log2('a')
+log2(2)
+
+capture_it <- function(f) {
+  force(f)
+  function(...) {
+    capture.output(f(...))
+  }
+}
+str_out <- capture_it(str)
+str(1:10)
+str_out(1:10)
+
+time_it <- function(f) {
+  force(f)
+  function(...) {
+    system.time(f(...))
+  }
+}
+mean_time <- time_it(mean)
+mean_time(1:10)
+mean_time(1:100)
+time_it(sum)(1:10)
+time_it(sum)(1:100)
+
+
+compute_mean <- list(
+  base = function(x) mean(x),
+  sum = function(x) sum(x) / length(x)
+)
+x <- runif(1e6)
+
+# old
+lapply(compute_mean, function(f) system.time(f))
+
+# new
+call_fun <- function(f, ...) f(...)
+lapply(compute_mean, call_fun, x)
+lapply(compute_mean, time_it(call_fun), x)
+
+# EXERCISES 1 ======================================
+negative <- function(f) {
+  force(f)
+  function(...) {
+    -f(...)
+  }
+}
+sum_n <- negative(sum)
+sum_n(1:10)
+negative(sum)(1:100)
+mean_n <- negative(mean)
+mean_n(1:10)
+negative(mean)(1:100)
+# EXERCISES 1 ======================================
+
+
+# EXERCISES 2 ======================================
+capture_it2 <- function(f) {
+  force(f)
+  function(...) {
+    capture.output(evaluate::evaluate(
+      f(...), keep_warning = TRUE, keep_message = TRUE
+    ))
+  }
+}
+capture_it2(1 + 1)
+capture_it2(c(1, 2, 3) > c(2, 3))
+capture_it2(c(1, 2, 3) > 'jeff' 'monson')
+
+greater_than <- capture_it2(`>`)
+greater_than(1, 1)
+greater_than(c(1, 2, 3), c(2, 3))
+greater_than(c(1, 2, 3), 'jeff' 'monson')
+# EXERCISES 2 ======================================
+
+
+# EXERCISES 3 ======================================
+file_changes <- function(f) {
+
+  force(f)
+
+  files <- dir()
+
+  function(...) {
+    out <- f(...)
+
+    setdiff(dir(), files)
+    
+    setdiff(files, dir())
+
+    out
+  }
+
+}
+
+file_changes <- function(f) {
+
+  force(f)
+
+  files <- dir()
+  files_add <- character(0)
+  files_del <- character(0)
+
+  function(...) {
+    out <- f(...)
+
+    files_add <<- c(files_add, setdiff(dir(), files))
+    files_del <<- c(files_del, setdiff(files, dir()))
+
+    # If you're reading and writing files, you don't need to return a
+    #   value; I'm just returning one because that's common for other
+    #   functions.
+    out 
+  }
+
+}
+write_track <- file_changes(write.csv)
+write_track(mtcars, 'temp - adv r.csv')
+environment(write_track)$files_add
+environment(write_track)$files_del
+
+del_track <- file_changes(file.remove)
+del_track('temp - adv r.csv')
+environment(del_track)$files_add
+environment(del_track)$files_del
+
+# Tracking files might be good.
+# Any files modified?
+# Any objects added, deleted, modified?
+# EXERCISES 3 ======================================
+# output FOs ------------------------------
+
+
+# input FOs -------------------------------
+
+# USING PARTIAL()
+# old
+funs2 <- list(
+  sum = function(...) sum(..., na.rm = TRUE),
+  mean = function(...) mean(..., na.rm = TRUE),
+  median = function(...) median(..., na.rm = TRUE)
+)
+# new
+library(pryr)
+funs2 <- list(
+  sum = partial(sum, na.rm = TRUE),
+  mean = partial(mean, na.rm = TRUE),
+  median = partial(median, na.rm = TRUE)
+)
+sum_nona <- partial(sum, na.rm = TRUE)
+sum_nona(1, NA, 3)
+
+# CHECK OUT THE ptools PACKAGE; %()%, %>>%, %<<% OPERATORS; 
+#   for alternatives to partial() / cleaning up anonymous functions.
+
+# base::Vectorise()
+sample2 <- Vectorize(sample, 'size', SIMPLIFY = FALSE)
+str(sample2(1:5, c(1, 1, 3)))
+# So sample2 is 'vectorized' in the sense that the 'size' argument is a
+#   vector, and sample2() will call sample() for each element in the size
+#   vector and store the results in a list.
+
+# splat()
+splat <- function(f) {
+  force(f)
+  function(args) {
+    do.call(f, args)
+  }
+}
+# So this makes it so you can ALWAYS throw all args into a list as input,
+#   instead of separate args.
+splat(mean)(list(1:10))
+splat(mean)(list(c(1:10, NA), na.rm = TRUE))
+splat(mean)(list(c(1:10, NA), na.rm = FALSE))
+mean_s <- splat(mean)
+mean_s(list(1:10))
+mean_s(list(c(1:10, NA), na.rm = TRUE))
+mean_s(list(c(1:10, NA), na.rm = FALSE))
+# Useful for varying numbers of arguments:
+x <- c(NA, runif(100), 1000)
+args <- list(
+  list(x),
+  list(x, na.rm = TRUE),
+  list(x, na.rm = TRUE, trim = 0.1)
+)
+lapply(args, splat(mean))
+# For every element in args, call splat(mean).
+# args is just x in list format, or x with the other stuff you'd call in mean()
+# So here, you're calling mean on x, then mean on x with na.rm = TRUE, then
+#   mean on x with na.rm = TRUE and trim = 0.1.
+
+# plyr::colwise()
+# Converts a vector function to a function that accepts data frames.
+median(mtcars)
+median(mtcars$mpg)
+plyr::colwise(median)(mtcars)
+median_df <- plyr::colwise(median)
+median_df(mtcars)
+median_df(Filter(is.numeric, iris))
+
+
+# EXERCISES: 1 ===============================
+download_file <- function(url, ...) {
+  download.file(url, basename(url), ...)
+}
+delay_by <- function(delay, f) {
+  # This returns a function, but Sys.sleep() will run every time you invoke
+  #   it.
+  function(...) {
+    Sys.sleep(delay)
+    f(...)
+  }
+}
+dot_every <- function(n, f) {
+  # This returns a function, but keeps a counter variable in the parent
+  #   environment of the function. The counter is updated every time the
+  #   function is invoked, and you add a test to see if the counter is
+  #   divisible by 10 before calling the function again. If it is, print a
+  #   dot, then run the function as usual.
+  i <- 1
+  function(...) {
+    if (i %% n == 0) cat(".")
+    i <<- i + 1
+    f(...)
+  }
+}
+download <- dot_every(10, memoise::memoise(delay_by(1, download_file)))
+download
+
+download_m <- function(urls, ...) {
+  lapply(
+    urls,
+    function(x) download(x, ...)
+  )
+}
+download_m <- function(urls, ...) {
+  lapply(
+    urls,
+    partial(download)
+  )
+}
+
+function(x) download(x, ...)
+partial(download)
+
+vec <- c(1, NA, 2, 3)
+test1 <- function(x) mean(x, na.rm = TRUE)
+test2 <- partial(mean, na.rm = TRUE)
+test1(vec)
+test2(vec)
+# So partial() basically takes a function + arguments, returns a function
+#   where you call the function with the specified arguments are set, but
+#   it takes the '...' operator after, so you can still pass whatever you
+#   want to. Pretty sweet.
+# So partial(mean, na.rm = TRUE) returns
+#   function(...) mean(na.rm = TRUE, ...)
+mean1 <- partial(mean, na.rm = TRUE)
+mean2 <- function(...) mean(na.rm = TRUE, ...)
+mean1(vec)
+mean2(vec)
+sum1 <- partial(sum, na.rm = TRUE)
+sum2 <- function(...) sum(na.rm = TRUE, ...)
+sum1(vec)
+sum2(vec)
+
+my_partial <- function(f, ...) {
+  # This is my implementation of pryr::partial()
+  force(f)
+  dots <- list(...)
+  function(...) {
+    do.call(f, c(list(...), dots))
+  }
+}
+mean_myp <- my_partial(mean, na.rm = TRUE)
+mean_myp(vec)
+mean_myp(1:30, trim = 0.5)
+
+
+test3 <- function(...) {
+  # To show that the '...' is SEPARATE FOR EACH FUNCTION DEFINITION!!!
+  dots <- list(...)
+  function(...) {
+    print(dots)
+    print(list(...))
+  }
+}
+example <- test3(na.rm = TRUE)
+example(trim = TRUE)
+example(sep = '<>')
+example(trim = TRUE, sep = '<>')
+# EXERCISES: 1 ===============================
+
+
+# EXERCISES: 2 ===============================
+library(plyr)
+mean_df <- colwise(mean)
+
+colwise <- function(.fun, .cols = true, ...) {
+  # Input args:
+  # Takes a function that you'll apply to a data frame
+  # .cols specifies which columns to process. Ignore for now, but it'd be
+  #   something like c('mpg', 'cyl') or is.numeric() or something like
+  #   that.
+  # ... is probably to pass additional stuff to .fun, so if .fun is mean,
+  #   you'd pass na.rm = TRUE.
+  if (!is.function(.cols)) {
+    # NEED TO UNDERSTAND as.quoted() TO GET THIS CHUNK!!
+    # BUT THE IDEA HERE IS THAT YOU INPUT SOMETHING LIKE .(mpg, cyl), THEN
+    #   LATER CALL filter() TO FILTER mtcars TO ONLY THE mpg AND cyl
+    #   COLUMNS.
+    .cols <- as.quoted(.cols)
+    # This turns the .cols argument into a quoted argument.
+    # (Still not sure what that means...)
+    # So you'd input something like: .cols = c('mpg', 'cyl'), then
+    #   it'd turn into as.quoted(c('mpg', 'cyl')), which is basically just
+    #   a list of the vector, where the names are the vector elements and
+    #   the elements are the quoted elements, so mpg and cyl instead of
+    #   'mpg' and 'cyl'.
+    # I still don't understand how it turns 'mpg' into mpg.
+    # But basically you go from a character vector to a list of objects,
+    #   and you can access the objects within the environment of the data
+    #   frame you're using.
+    # eval.quoted(.cols, df) basically means df[not_as_quoted(.cols)], as in
+    #   filter2 <- function(df) df[.cols]. THIS SEEMS LIKE A TON OF
+    #   COMPLICATION JUST TO SAVE TYPING!!!
+    filter <- function(df) eval.quoted(.cols, df)
+  }
+  else {
+    # If .cols IS a function, define filter() as a function that calls
+    #   Filter() on a data frame, according to the .cols function.
+    # So is .cols is is.numeric(), it'll Filter the df to numeric columns.
+    # What's really interesting is true(), that just returns true for every
+    #   column in df.
+    filter <- function(df) Filter(.cols, df)
+  }
+  # Save additional methods and arguments as 'dots'
+  dots <- list(...)
+  # Return function that you can run on data frames.
+  function(df, ...) {
+    # First argument is 'df', so you know you have to input a data frame as
+    #   an argument no matter what.
+    # Re the second argument, '...', I don't know why this isn't evaluated
+    #   when you call the colwise() function to define this closure. So if
+    #   you define a function like:
+    #     my_function <- colwise(mean, is.numeric, na.rm = TRUE),
+    #   then why wouldn't the dots directly above be assinged na.rm = TRUE?
+    # Answer: it does work like that -- the dots are saved as whatever you
+    #   enter them as.
+    # I'm still not sure if the '...' directly above allow to add in
+    #   additional arguments or not -- WHY DOES THE do.call() CALL ... AND
+    #   dots SEPARATELY, IF THEY'RE THE SAME???
+    stopifnot(is.data.frame(df))
+    # Error handling.
+    df <- strip_splits(df)
+    # This is fascinating: strip_splits() pulls out the fields in the data
+    #   frame that you're splitting / grouping by. It adds them back in
+    #   after the grouping operation.
+    # It has to be a data frame that you're using with a d*ply operation.
+    filtered <- filter(df)
+    # This applies the filter() function that you defined outside of this
+    #   closure. This will throw out columns that you're not interested in
+    #   applying the function to, returning the data frame 'filtered'.
+    if (length(filtered) == 0) return(data.frame())
+    # If filtered has zero columns, return an empty data frame.
+    out <- do.call("lapply", c(list(filtered, .fun, ...), dots))
+    # Call the function you're using, .fun, on every element in the
+    #   filtered data frame, storing the output in a list called 'out'.
+    # THIS IS KIND OF LIKE splat() THOUGH
+    # == DOESN'T REALLY MAKE SENSE? UNDERSTAND... ==
+    # do.call('lapply', list(mtcars, mean, na.rm = TRUE))
+    # This is interesting because the first arg has to be a list, the
+    #   second arg has to be a function, and everything after that is just
+    #   the '...''s, so using do.call(lapply, list(df, func, ...)) works
+    #   out really well because you can easily handle an arbitrary/variable
+    #   number of additional args.
+    # I think that the '...' in this closure is considered separate from
+    #   the one in the colwise definition, BUT R prints the '...' from the
+    #   original, so it looks like it's na.rm = TRUE, when it's really ...
+    # do.call('lapply', c(list(mtcars, mean, na.rm = TRUE), na.rm = TRUE))
+    # It prints the above, but that's not what it actually does.
+    # do.call(
+    #   "lapply",
+    #   c(list(mtcars, mean, trim = 0.5), list(na.rm = TRUE))
+    # )
+    # It actually does something like above, where the dots turn into the
+    #   dots as defined in the closure definition.
+    names(out) <- names(filtered)
+    # Name the elements in the 'out' list, taking names from the 'filtered'
+    #   data frame.
+    quickdf(out)
+    # Convert 'out' from list to data frame. quickdf() is the same as
+    #   as.data.frame(), but runs faster.
+  }
+}
+
+
+# [1] Define a function, filter(), to throw out columns you don't want to
+#   apply .fun to.
+# [2] Save additional args and methods as dots.
+# [3] Define closure that colwise() will return
+#   a) Throw out columns that you don't want to process.
+#   b) Call lapply() to run .fun on every column.
+#   c) Turn the output from lapply() into a data frame.
+
+# how make it simpler by making each task an FO?
+make_filter <- function(.cols) {
+  if (!is.function(.cols)) {
+    function(df) {
+      .cols <- as.quoted(.cols)
+      eval.quoted(.cols, df)
+    } 
+  } else {
+    function(df) {
+      Filter(.cols, df)
+    }
+  }
+}
+make_filter(c('mpg', 'cyl'))(mtcars)
+make_filter(is.numeric)(head(iris))
+make_filter(is.factor)(head(iris))
+make_filter(true)(mtcars)
+lapply2 <- function(df, f, ...) do.call('lapply', list(df, f, ...))
+filtered <- make_filter(.cols)(df)
+out <- splat(lapply)(list(df, f, ...)) # out <- lapply2(df, .fun, ...)
+as.data.frame(out)
+
+# Don't know why this is here, but...
+subset(mtcars, mpg < 15)
+`[`(mtcars, `<`(`[[`(mtcars, 'mpg'), 15), )
+# EXERCISES: 2 ===============================
+
+
+# EXERCISES: 3 ===============================
+as.data.frame.function <- function(f) {
+  force(f)
+  function(...) {
+    out <- f(...)
+    as.data.frame(out)
+  }
+}
+as.matrix.function <- function(f) {
+  force(f)
+  function(...) {
+    out <- f(...)
+    as.matrix(out)
+  }
+}
+as.data.frame.function(<function that returns a matrix>)(<input>)
+as.matrix.function(<function that returns a data.frame>)(<input>)
+
+as.data.frame.function(matrix)(c(1, 2, 3, 4), nrow = 2)
+as.matrix.function(data.frame)(names = c('jeff', 'monson'), letters = letters)
+# EXERCISES: 3 ===============================
+
+
+# EXERCISES: 4 ===============================
+# Five functions that modify a function to change output from one form to
+#   another. List them:
+as.data.frame.function
+as.matrix.function
+negative
+failwith
+Negate
+
+# Make a table of combos of output types; which ones would you add?
+                          negative      Negate          failwith          quoted                character
+as.data.frame.function    negative df   False if true   default if error  unevaluated function  as character
+as.matrix.function
+as.list.function
+as.vector.function
+# EXERCISES: 4 ===============================
+
+
+# EXERCISES: 5 ===============================
+# List all examples of anonymous function use in FO and Functionals chapters.
+f <- function(x) x ^ 2
+g <- function(x) cos(x) - x
+f <- function(a, b) function(x) a * x + b; fs <- Map(f, a = c(0, 1), b = c(0, 1))
+compact <- function(x) Filter(Negate(is.null), x)
+compute_mean <- list(
+  base = function(x) mean(x),
+  sum = function(x) sum(x) / length(x)
+)
+# Head still isn't completely wrapped around this:
+x <- runif(1e6); call_fun <- function(f, ...) f(...); lapply(compute_mean, time_it(call_fun), x)
+
+# Replace the anonymous function with partial.
+partial(`^`, 2) # this isn't right...
+partial(mean)
+partial(??)
+partial(Filter, Negate(is.null))
+partial(Filter, Negate, is.null)
+# EXERCISES: 5 ===============================
+
+
+
+# MAYBE ALSO READ/UNDERSTAND THE SOURCE FOR THIS TOO
+partial <- function (`_f`, ..., .env = parent.frame(), .lazy = TRUE) {
+  stopifnot(is.function(`_f`))
+  if (.lazy) {
+    fcall <- substitute(`_f`(...))
+  }
+  else {
+    fcall <- make_call(substitute(`_f`), .args = list(...))
+  }
+  fcall[[length(fcall) + 1]] <- quote(...)
+  args <- list(... = quote(expr = ))
+  make_function(args, fcall, .env)
+}
+
+# AND READ THE SOURCE FOR mapvalues()
+mapvalues <- function(x, from, to, warn_missing = TRUE) {
+  if (length(from) != length(to)) {
+    stop("`from` and `to` vectors are not the same length.")
+  }
+  if (!is.atomic(x)) {
+    stop("`x` must be an atomic vector.")
+  }
+  if (is.factor(x)) {
+    levels(x) <- mapvalues(levels(x), from, to, warn_missing)
+    return(x)
+  }
+  mapidx <- match(x, from)
+  mapidxNA <- is.na(mapidx)
+  from_found <- sort(unique(mapidx))
+  if (warn_missing && length(from_found) != length(from)) {
+    message("The following `from` values were not present in `x`: ", 
+      paste(from[!(1:length(from) %in% from_found)], collapse = ", "))
+  }
+  x[!mapidxNA] <- to[mapidx[!mapidxNA]]
+  x
+}
+
+
+# ALSO REWRITE tee() FROM SCRATCH, FOR FUN
+<tee()>
+# input FOs -------------------------------
+
+
+# combining FOs ---------------------------
+sapply(mtcars, function(x) length(unique(x)))
+compose <- function(f, g) {
+  function(...) f(g(...))
+}
+sapply(mtcars, compose(length, unique)) # THIS IS SUPER CLEAN, SON
+
+
+
+
+
+pryr::compose <- function(...) {
+  fs <- lapply(list(...), match.fun)
+  # fs <- lapply(list(mean, sum, sd), match.fun)
+  # This parses the arguments, and makes sure that, if the argument has
+  #   multiple defintions (e.g. if you define a variable as 'sum', then
+  #   feed it into a function where you want to call 'sum' AS a function,
+  #   that'd be bad. This makes sure that, within the function, you'd be
+  #   looking up the sum function. It's basically a little safety check.)
+  n <- length(fs)
+  # number of functions you're inputting
+  last <- fs[[n]]
+  # pull the last function in the input args
+  rest <- fs[-n]
+  # store the fs list, but exclude the last function
+  function(...) {
+    # Define closure here, to return a function
+    out <- last(...)
+    # Call the last function in the original input list of functions on
+    #   whatever the new input list of arguments is. Here, it'd be
+    #   non-function arguments, because you're applying the function you
+    #   made with the compose closure.
+    # So out <- sd(...); or let's say that out <- sd(1, 2, 3, 4) or
+    #   out <- sd(c(1:4)) if you call it on a vector.
+    for (f in rev(rest)) { # I suppose rev is more concise and clear than sort(..., desc = TRUE), even if it's a bit obscure.
+      # Loop through all functions in fs that aren't the LAST function that
+      #   you originally put in; do it in reverse order. So you're going
+      #   from the second to last function, to the third to last function,
+      #   to the fourth to last function, all  the way back to the first
+      #   function that you input.
+      # So you'd loop through sum, then, mean. (sd is last.)
+      out <- f(out)
+      # 1st loop through: out <- sum(sd(...))
+      # 2nd loop through: out <- mean(sum(sd(...)))
+    }
+    out
+    # Then you return the out function/object.
+    # So you'd return mean(sum(sd(...)))
+  }
+}
+# So pryr::compose(min, max, median) would return:
+#   median(...)
+#   median(max(...))
+#   median(max(min(...)))
+
+
+"%o%" <- compose
+sapply(mtcars, length %o% unique)
+
+compose(sqrt, `+`)(1, 8) # sqrt(`+`(1, 8))
+(sqrt %o% `+`)(1, 8)
+
+
+Negate <- function(x) {
+  function(...) `!`(x(...))
+}
+
+# pryr::compose() with one argument is like function(x) f(x)
+anon_fun <- function(f) {
+  function(...) f(...)
+}
+anon_fun(mean)(0:4)
+pryr::compose(mean)(0:4)
+Negate <- function(f) `!`(compose(f))
+# So here, compose(f) just returns the function f, then `!` negates it.
+
+Negate <- partial(compose, `!`)
+# Just to try to understand partial() better: 
+# partial() gets rid of the function(x) x part
+# partial() wraps the first argument around subsequent arguments
+# And puts subsequent arguments in order, leaving ... after
+#
+# IT'S SO CLEAN AND CONCISE THAT IT'S GOOD, BUT IT'S SO RIDICULOUSLY
+#   ABSTRACT THAT I THINK IT'S OVERKILL. BUT I DON'T FULLY UNDERSTAND IT,
+#   SO I THINK I SHOULD.
+
+# Function operators to combine logical predicates
+and <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    f1(...) && f2(...)
+  }
+}
+or <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    f1(...) || f2(...)
+  }
+}
+not <- function(f) {
+  force(f)
+  function(...) {
+    !f(...)
+  }
+}
+# old
+Filter(function(x) is.character(x) || is.factor(x), iris)
+# new
+Filter(or(is.character, is.factor), iris)
+Filter(not(is.numeric), iris)
+
+
+# EXERCISES 1: ================================
+# Use simple compose, %o%, not pryr::compose(), and Reduce, to replicate
+#   pryr::compose().
+compose <- function(f, g) {
+  function(...) f(g(...))
+}
+"%o%" <- compose
+formals(Reduce)
+
+compose1 <- function(...) Reduce('%o%', list(...))
+compose1 <- function(x) Reduce('%o%', x)
+
+compose2 <- partial(Reduce, f = '%o%')
+compose2 <- partial(Reduce, f = '%o%')
+
+compose3 <- partial(Reduce, '%o%')
+compose3 <- partial(Reduce, '%o%')
+
+compose1(list(length, unique))(c(letters, letters))
+compose1(length, unique)(c(letters, letters))
+
+compose2(length, unique)(c(letters, letters))
+compose2(list(length, unique))(c(letters, letters))
+
+compose3(length, unique)(c(letters, letters))
+compose3(list(length, unique))(c(letters, letters))
+
+
+compact1 <- function(x) Filter(Negate(is.null), x)
+compact2 <- partial(Filter, f = Negate(is.null))
+compact3 <- partial(Filter, Negate(is.null))
+compact1(list(a = letters, c = NULL, b = 1:10))
+compact2(list(a = letters, c = NULL, b = 1:10))
+compact3(list(a = letters, c = NULL, b = 1:10))
+# EXERCISES 1: ================================
+
+
+# EXERCISES 2: ================================
+or <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    f1(...) || f2(...)
+  }
+}
+and <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    f1(...) && f2(...)
+  }
+}
+and2 <- function(...) {
+  # This works fine, but the anonymous function is irritating and it isn't
+  #   lazy, e.g. it doesn't break and return FALSE at the detection of the
+  #   first FALSE.
+  fs <- list(...)
+  l_ply(fs, force)
+  function(...) {
+    evald <- lapply(fs, function(f) f(...)) # THE ANON FUNCTION IS AN EYESORE!!
+    Reduce("&&", evald)
+  }
+}
+and2_lazy <- function(...) {
+  fs <- list(...)
+  l_ply(fs, force)
+  function(...) {
+    for (i in fs) if (i(...) == FALSE) return(FALSE)
+    TRUE
+  }
+}
+
+testdf <- data.frame(
+  col1 = c(1L, 2L, 3L),
+  col2 = c(1.0, 2.0, 3.0),
+  col3 = c(4L, 5L, 6L),
+  col4 = c(4.0, 5.0, 6.0)
+)
+Filter(and(is.numeric, is.integer), testdf)
+Filter(and2(is.numeric, is.integer), testdf)
+Filter(and2_lazy(is.numeric, is.integer), testdf)
+
+Filter(is.numeric, mtcars)
+Filter(not(is.numeric), mtcars)
+Filter(Negate(is.numeric), mtcars)
+# EXERCISES 2: ================================
+
+
+# EXERCISES 3: ================================
+# xor() binary operator from existing xor() function:
+xor2 <- function(...) {
+  fs <- lapply(list(...), force)
+  function(...) {
+    evald <- lapply(fs, function(f) f(...))
+    Reduce(xor, evald)
+    # Not sure if this makes sense or not...
+  }
+}
+xor3 <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    xor(f1(...), f2(...))
+  }
+}
+
+# xor() from combination of and() and or():
+xor4 <- function(f1, f2) {
+  force(f1); force(f2)
+  function(...) {
+    `&&`(
+      or(f1(...), f2(...)),
+      !and(f1(...), f2(...))
+    )
+  }
+}
+# EXERCISES 3: ================================
+
+
+# EXERCISES 4: ================================
+# These 'fold' everything per Reduce.
+plus <- function(...) {
+  fs <- lapply(list(...), force)
+  function(...) {
+    evald <- lapply(fs, function(f) f(...))
+    Reduce(`+`, evald)
+  }
+}
+
+# Family of functions is infinity cleaner.
+make_operator <- function(operator) {
+  function(...) {
+    fs <- lapply(list(...), force)
+    function(...) {
+      evald <- lapply(fs, function(f) f(...))
+      Reduce(operator, evald)
+    }
+  }
+}
+plus <- make_operator(`+`)
+minus <- make_operator(`-`)
+multiply <- make_operator(`*`)
+divide <- make_operator(`/`)
+exponentiate <- make_operator(`^`)
+log <- make_operator(log)
+
+# So to add the mean to the median for numbers 1:10:
+plus(mean, median)(1:10)
+# To multiply the variance by the mean for numbers 1:10:
+multiply(var, mean)(1:10)
+
+# IDK IF I DEEPLY UNDERSTAND THIS, MIGHT NEED TO DIGEST A LITTLE BIT MORE
+#   LATER...
+# EXERCISES 4: ================================
+# combining FOs ---------------------------
+# FUNCTION OPERATORS ==========================================================
+
+
+
+# NSE =========================================================================
+# In R functions, you can capture the code used to make an argument AND the
+#   argument itself.
+substitute() # RETURNS THE CODE, NOT THE VALUE
+deparse() # TAKES THE RESULT OF A substitute() CALL, AND MAKES IT INTO A
+#   CHARACTER VECTOR.
+# So an example would be something like:
+#   x <- 1:4
+#   y <- letters[1:4]
+#   data.frame(x, y)
+# The first col is deparse(substitute(x))
+# The second col is deparse(substitute(y))
+# The contents of the first col are eval(x)
+# The contents of the second col are eval(y)
+
+# Exercises: 1 =================================
+g <- function(x) deparse(substitute(x), width.cutoff = 500)
+g <- function(x) deparse(substitute(x), nlines = 1L)
+g(a + b + c + d + e + f + g + h + i + j + k + l + m +
+  n + o + p + q + r + s + t + u + v + w + x + y + z)
+# My guess is that it captures the '\n' character, that's secretly in the
+#   expression.
+deparse2 <- function(r_code) {
+  # pull \n from string
+  deparse(r_code) %>% paste(collapse = '')
+  # deparse(a + b + c + d + e + f + g + h + i + j + k + l + m +
+  #         n + o + p + q + r + s + t + u + v + w + x + y + z)
+}
+g2 <- function(x) deparse2(substitute(x))
+g2(a + b + c + d + e + f + g + h + i + j + k + l + m +
+  n + o + p + q + r + s + t + u + v + w + x + y + z)
+# I'm not gonna work any more on this one. It's always one line, but I'm
+#   not sure if it's really the same...
+# Exercises: 1 =================================
+
+# Exercises: 2 =================================
+as.Date('2010-01-01')
+x <- c('2010-01-01', '2010-01-01')
+stop(
+  gettextf("do not know how to convert '%s' to class %s", 
+  deparse(substitute(x)), dQuote("Date")), domain = NA
+)
+# So it tells you the variable that you supplied to the function, not its
+#   value. So if you have a vector, you wouldn't print out the whole
+#   vector, just the name of it.
+# For pairwise.t.test(), it's the same -- it's so that the output object
+#   has variable names.
+# Exercises: 2 =================================
+
+# Exercises: 3 =================================
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <- Ozone
+pairwise.t.test(
+  xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx,
+  Month
+)
+
+pairwise.t.test( 
+  c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1), 
+  c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1) 
+) 
+
+paste(
+  deparse(substitute(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1))),
+  'and',
+  deparse(substitute(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)))
+)
+
+paste(
+  deparse(substitute(`a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z`)),
+  'and',
+  deparse(substitute(`a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z`))
+)
+
+paste('first', 'and', 'second')
+paste(c('first a', 'first b'), 'and', c('second a', 'second b'))
+# It looks like paste() handles input in the same nature as Map(); if
+#   inputs have mutliple elements, it'll take all the other inputs and
+#   recycle them until they're the same length. Then, it'll loop through
+#   the length of each arg and paste everything together, storing the
+#   output as a character vector with length > 1.
+paste(c('jeffrey', 'michael', 'monson'), 'is', 'the', 'best')
+
+deparse(substitute(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, mtcars)))
+deparse(substitute(c(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)))
+# The first one DOESN'T split into two, I think BECAUSE VARIABLE NAMES ARE
+#   CONSIDRED ONE UNIT TO THE DEPARSING WIDTH CUTOFF. The documentation
+#   says that it's measure in bytes, so maybe a variable is one byte, every
+#   though one byte can be 100 or 200 characters long to the end user.
+
+x = rnorm(100) 
+g = gl(2, 1, 100) 
+`a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z` <- g
+pairwise.t.test(x, `a + b + c + d + e + f + g + h + i + j + k + l + m + n + o + p + q + r + s + t + u + v + w + x + y + z`)
+# So the final answer is that: [1] width cutoff is in bytes, not characters
+#   of text, and [2] paste functions like Map in that if one input is
+#   recursive, it'll use recycling to lengthen the other inputs, then it'll
+#   iterate through, pasting everything together.
+# Exercises: 3 =================================
+
+# Exercises: 4 =================================
+f <- function(x) substitute(x)
+g <- function(x) deparse(f(x))
+# I think the problem here is that, when you define the function g(),
+#   you're calling substitute on 'x'. So it's storing x as R code, when you
+#   call g(), you're calling in on 'x', NOT on the argument that you input
+#   into the g() function.
+g(1:10)
+# should return 'x'
+g(x)
+# should return 'x'
+g(x + y ^ 2 / z + exp(a * sin(b)))
+# should return 'x'
+# Exercises: 4 =================================
+
+
+# Apparantly substitute() does a bunch of transformations (that I don't
+#   know about); WHILE quote() ALWAYS RETURNS EVERYTHING EXACTLY AS IS.
+# I'm wondering if substitute() does things to make sure that it remains R
+#   code.
+
+# The point of NSE is to do something like:
+#   mydf$varname
+#   instead of 
+#   globalenv()$varname
+
+# Use eval() to evaluate expressions
+# You don't want to just call it with one argument, because it's the same as
+#   just entering in the expression.
+
+# eval() and quote() both work on one 'order', in opposite directions.
+quote(2 + 2)
+eval(quote(2 + 2))
+quote(quote(2 + 2))
+eval(quote(quote(2 + 2)))
+eval(eval(quote(quote(2 + 2))))
+
+# Pick the environment to eval in
+x <- 10
+eval(quote(x))
+e <- new.env()
+e$x <- 20
+eval(quote(x), e)
+# eval()s second argument can be a recursive object
+eval(quote(x), list(x = 30))
+eval(quote(x), data.frame(x = 40))
+
+# first chunk of subset():
+eval(quote(mpg > 25), mtcars)
+# equivalent to:
+mtcars$mpg > 25
+# So R will take mpg symbol and look for it in the mtcars object
+eval(quote(cyl == 4), mtcars)
+
+# if you don't quote the argument in eval, it'll evaluate before the
+#   function call.
+mpg <- 30
+eval(mpg > 25, mtcars)
+eval(quote(mpg > 25), mtcars)
+
+subset2 <- function(x, cond) {
+  cond_call <- substitute(cond)
+  r <- eval(cond_call, x)
+  x[r, TRUE]
+}
+subset2 <- function(x, cond) `[`(x, eval(substitute(cond), x), TRUE, drop = FALSE)
+# NOTE THAT PUTTING IN 'TRUE' FOR THE J ARG INTO `[` IS THE SAME AS LEAVING
+#   IT BLANK. BUT TRUE IS INFINITY BETTER BECAUSE IT'S EXPLICIT, RATHER
+#   THAN IMPLICIT, AND BECAUSE IF YOU WANT IT TO BE VARIABLE, THEN YOU CAN
+#   EITHER SET IT TO TRUE, OR SET IT TO A BOOLEAN VECTOR OF THE COLUMNS YOU
+#   WANT TO KEEP.
+subset2 <- function(x, cond) `[`(x, eval(quote(cond), x), TRUE, drop = FALSE)
+# I HAVE NO IDEA WHY IT WORKS FOR substitute() BUT NOT FOR quote()????
+subset2(mtcars, mpg > 30)
+
+# Exercises: 1 =================================
+eval(quote(eval(quote(eval(quote(2 + 2)))))) # 4
+eval(eval(quote(eval(quote(eval(quote(2 + 2))))))) # 4
+quote(eval(quote(eval(quote(eval(quote(2 + 2))))))) # 2 + 2 # quoted
+# Exercises: 1 =================================
+
+# Exercises: 2 =================================
+sample_df2 <- data.frame(x = 1:10)
+subset2(sample_df2, x > 8)
+
+subset3 <- function(x, cond) {
+  cond_call <- substitute(cond)
+  r <- eval(cond_call, x)
+  x[r & !is.na(r), TRUE, drop = FALSE]
+}
+subset3(sample_df2, x > 8)
+subset3(mtcars, mpg > 20)
+# Exercises: 2 =================================
+
+# Exercises: 3 =================================
+base::subset <- function(x, subset, select, drop = FALSE, ...) {
+
+x <- mtcars
+e <- substitute(mpg > 20)
+select <- substitute(c(mpg, cyl))
+
+  r <- if (missing(subset)) rep_len(TRUE, nrow(x)) else {
+  # 'r' is for rows!
+    e <- substitute(subset)
+    # 'e' is for expression!!
+    r <- eval(e, x, parent.frame())
+    if (!is.logical(r)) stop("'subset' must be logical")
+    # Error handling
+    r & !is.na(r)
+    # NA handling; only want to keep rows that aren't NA!!
+  }
+
+  vars <- if (missing(select)) TRUE else {
+  # vars is columns that you want to keep (or exclude)
+    nl <- as.list(seq_along(x))
+    # This makes a list for every column in input df.
+    names(nl) <- names(x)
+    # And names the list elements after the column names in input df
+    # So it's basically a little lookup table. mpg will turn into 1, cyl
+    #   will turn into 2, gear will turn into 10, carb will turn into 11,
+    #   etc. So when you throw in c(mpg, cyl), it'll evaluate to c(1, 2),
+    #   which you can use to subset the data frame by columns using
+    #   standard subsetting operators.
+    # This is really clever. All the stuff here is super simple, it's just
+    #   put together in a clever way to make it easy for the user.
+    eval(substitute(select), nl, parent.frame())
+    # Here, you evaluate the objects you put in under select within the
+    #   list you made.
+    # It's interesting that you can concatenate objects that only exist in
+    #   another object. It makes sense, it's just weird -- you're feeding
+    #   in an object that's c(something_niche, something_niche2).
+    # Here, eval() will call the 'c' function on two objects that don't
+    #   necessarily exist, but you'll look for them within the 'nl' list.
+    #   The first object, let's say mpg, will become nl$mpg. The second,
+    #   let's say carb, will become nl$carb. So finally, you have
+    #   c(nl$mpg, nl$carb), which evaluates to the corresponding locations
+    #   of those columns in the 'x' data set.
+  }
+
+  x[r, vars, drop = drop]
+}
+# I think on some level, this function shows some of the uniqueness of R:
+#   you can put an expression into a function, and it doesn't throw an
+#   error, becuase R doesn't evaluate it until it needs to. When it finally
+#   does need to evaluate the expression, you're doing it using eval() and
+#   explicitly determining where to evaluate it -- and you aren't limited
+#   to doing it according to the standard environment hierarchy. So you can
+#   input a bunch of crap into the function you're writing, and then call
+#   those objects within whatever object you're actually using them in.
+
+# It's funny how easy it is to answer the question when you just get in to
+#   the source!
+# It's so much easier to just see what other people are doing, and apply
+#   their techniques, than to try to re-invent the wheel every time.
+# Exercises: 3 =================================
+
+# Exercises: 4 =================================
+# Everything evaluates to FALSE, so you get an empty df
+# So I guess the idea here is that quote() returns the input data EXACTLY as
+#   is, while substitute() can make *wait for it* substitutions, which I
+#   think means substituting any code for variables within the environment.
+# From the documentation:
+#   If it's not a bound symbol in env, it's unchanged.
+#   If it's a promise object (a formal argument to a function), the
+#     expression slot of the promise replaces the symbol. (I think - so if
+#     it's a formal arg toa a function, the expression replaces the symbol.
+#     so something like: formals(subset.data.frame)$subset is mpg > 20, 
+#     calling substitute would mean change 'subset' to 'mpg > 20').
+#     While quote() would keep 'subset' as 'subset', becuase its' not a
+#     promise.
+#   If it's an ORDINARY VARIABLE, THE VALUE IS SUBSTITUTED, unless env is
+#     .GlobalEnv. So if something is a variable, you evaluate it. So 
+#     something like mpg would turn into mtcars$mpg. Per this:
+#       mpg <- "999"
+#       subsitute(mpg) # mpg # BECAUSE env IS .GlobalEnv, this doesn't evaluate anything, it just returns the quoted object.
+#       substitute(mpg, mtcars) # '999' # Here, mpg is evaluated before it's called within substitute, so you're effictively saying substitute('999', mtcars).
+#       substitute(quote(mpg), mtcars) # Here, mpg isn't evaluated until it's inside substitute, so it sees that mpg is bound to mtcars, then it makes the substitution.
+subset3 <- function(x, cond) {
+  cond_call <- substitute(cond)
+  # The call to subsitute above DEFAULTS TO THE CURRENT EVALUATION
+  #   ENVIRONMENT, so it evaluates within this closure.
+  print(cond_call)
+  # so substitute() evaluates cond to mpg > 20, because cond is a promise
+  #   object, so you replace the symbol with it's underlying expression.
+  print(quote(cond))
+  # and quote() DOESN'T EVALUATE ANYTHING, so it JUST RETURNS 'cond'
+  r <- eval(cond_call, x)
+  x[r & !is.na(r), TRUE, drop = FALSE]
+}
+subset3(sample_df2, x > 8)
+# The area after the , here is called the expression slot, of the promise
+subset3(mtcars, mpg > 20)
+
+# What is a 'call'?
+cl <- call("round", 10.5)
+is.call(cl) # TRUE
+cl
+## such a call can also be evaluated.
+eval(cl) # [1] 10
+# So this CREATES A FUNCTION CALL, WHERE FIRST ARG IS THE NAME OF THE
+#   FUNCTION AND SUBSEQUENT ARGS ARE ARGS TO BE PASSED TO THE FUNCTIONS.
+# THE FUNCTION CALL REMAINS UNEVALUATED, UNTIL YOU EXPLICITY EVALUATE IT.
+# IT'S STORED AS A call OBJECT, AND YOU'D USE eval() TO, well, evaluate it.
+# THE DOTS ARE EVALUATED IN call. So
+#   call(f, ...) -> call('round', 10.5) -> round(10.5)
+# Exercises: 4 =================================
+
+# Exercises: 5 =================================
+select <- function(df, vars) {
+  df <- mtcars
+  vars <- -cyl
+  vars <- substitute(-cyl)
+
+  vars <- substitute(vars)
+  var_pos <- setNames(as.list(seq_along(df)), names(df))
+  pos <- eval(vars, var_pos)
+  df[, pos, drop = FALSE]
+}
+select(mtcars, -cyl)
+# So here, you're making a little 'lookup table', matching the names of the
+#   data frame to the indices within the data frame. Then you're evaluating
+#   the 'vars' within that lookup table, so you return an index of which
+#   columns you actually want to keep.
+# Exercises: 5 =================================
+
+# Exercises: 6 =================================
+eval()
+evalq()
+eval(quote(expr), ...)
+
+eval(quote(mtcars))
+evalq(mtcars)
+
+# eval evaluates its first argument in the current scope BEFORE passing it
+#   to the evaluator.
+# BUT evalq DOESN'T.
+# I think this is the problem of this:
+mpg <- '999'
+eval(mpg, mtcars) # This one evaluates the firs arg in the global env before calling
+evalq(mpg, mtcars) # This one WAITS and evaluates the first arg within mtcars
+
+a <- 10
+eval(quote(a), sample_df)
+evalq(a, sample_df)
+eval(quote(a >= 4), sample_df)
+evalq(a >= 4, sample_df)
+e <- new.env()
+e$x <- 20
+eval(quote(x), e)
+evalq(x, e)
+# Exercises: 6 =================================
+
+# scoping issues ----------------------------------------
+subset2 <- function(x, condition) {
+  condition_call <- substitute(condition)
+  print(condition_call)
+  r <- eval(condition_call, x)
+  # So if the condition has 'x' variable in it, and eval() can't find 'x'
+  #   in the envir (which here is sample_df), it'll go to the next
+  #   environment up, look for it, and proceed in that order until it finds
+  #   a match.
+  # So instead of saying that 'there is no x within sample_df, so I'm going
+  #   to use the x in the global environment', you're saying 'there is no 
+  #   x within sample_df, so I'm going to look within the subset2
+  #   definition'. Then, you see that x is sample_df, and the call doesn't
+  #   make sense.
+  x[r, ]
+}
+sample_df
+
+y <- 4
+x <- 4
+condition <- 4
+condition_call <- 4
+subset2(sample_df, a == 4) # wrong
+subset2(sample_df, a == y) # wrong
+subset2(sample_df, a == x) # wrong
+subset2(sample_df, a == condition) # wrong
+subset2(sample_df, a == condition_call) # wrong
+# So for objects that don't have an enclosing environment, like lists or
+#   data frames, you can manually specify one.
+# If eval() doesn't find a binding in env, it'll next look in enclos, then
+#   in the parents of enclos.
+# If env is actually en environment, enclos is ignored. I think this'd be
+#   because there's only one place to look, that environment -- there's no
+#   hierarchy or anything.
+# Our goal here is to look in the environment that subset2 was called in, 
+#   because we're defining the variables of interest there -- x, y,
+#   condition, condition_call are all defined in the same environment that
+#   we're calling subset2 in (in this case is .GlobalEnv). THIS ENVIRONMENT
+#   IS CALLED parent.frame().
+# This is an example of dynamic scope, which means that we're pulling
+#   values from where the function was called, NOT from where it was
+#   defined. I'm sure there are some implications...
+subset2 <- function(x, condition) {
+  condition_call <- substitute(condition)
+  print(condition_call)
+  r <- eval(condition_call, x, parent.frame())
+  x[r, ]
+}
+sample_df
+
+y <- 4
+x <- 4
+condition <- 4
+condition_call <- 4
+subset2(sample_df, a == 4) # wrong
+subset2(sample_df, a == y) # wrong
+subset2(sample_df, a == x) # wrong
+subset2(sample_df, a == condition) # wrong
+subset2(sample_df, a == condition_call) # wrong
+
+subset2 <- function(x, condition) {
+  condition_call <- substitute(condition)
+  env <- list2env(x, parent = parent.frame())
+  print(parent.frame())
+  # So I think this just goes up the environment hierarchy by one level.
+  # Even though you can input argument into parent.frame() to control how
+  #   many levels you want to go up by.
+  # But the environment hierarchy maxes out at .GlobalEnv, I guess because
+  #   that's the highest environment that you can actually manipulate stuff
+  #   in.
+  # So having parent.frame() be the enclosing environment for subset2() is
+  #   interesting because it allows you to access the variables bound one
+  #   level up, no matter what -- so if you are calling subset2() in a
+  #   function, it'll look for variables local to that function. If you
+  #   call subset2() within local(), it'll look for variables (I guess in
+  #   the parent). Point is that the function call will happen in different
+  #   environments, and you're in good shape either way.
+  r <- eval(condition_call, x, env)
+  x[r, ]
+}
+# So this works becuase you're turning the list/data.frame into an
+#   environment, SAVING THAT ENVIRONMENT AS env.
+# Then, when you call eval(), the enclos argument is an environment, so
+#   it'll only look for variables there. So if any variable isn't in the
+#   list/dataframe, it'll stop looking.
+# Importantly, when you call eval(), you look within the environment that
+#   you created, NOT within the subset2 call.
+# It's interesting that you can store a data frame as an environment, but I
+#   guess it makes sense.
+
+# I'M STILL NOT ENTIRELY SURE WHAT parent.frame() MEANS OR DOES!!!
+sys.frame()
+sys.parent()
+sys.frame(sys.parent(n)) # to get the environment where a function is called.
+parent.frame()
+
+local(jeff <- 10, envir = new.env())
+# This call stores the jeff variable in the envir environment, so you can't
+#   access it just by typing it in elsewhere.
+local(jeff <- 10, envir = .GlobalEnv)
+# SO THIS CALL STORES EVERYTHING IN THE local EXPRESSION IN THE GLOBAL
+#   ENVIRONMENT, INSTEAD OF MAKING A NEW ENVIRONMENT.
+# So even though you're defining 'jeff' in the local() call, you're storing
+#   it in the global environment, so you can access it just by typing in
+#   jeff.
+
+local2 <- function(expr, envir = new.env()) {
+  # eval.parent(substitute(eval(quote(expr), envir))) # original
+
+# Maybe it's something like: you want to evaluate the
+#   eval(quote(expr, envir)) within the parent environment, as opposed to
+#   within whatever environment the call is in.
+# Still not sure I understand this, but I'm wondering if it's more for some
+#   one-off cause.
+
+  evald <- eval(quote(expr), envir)
+  # So you're evaluating the expression in a new environment.
+  evald <- substitute(eval(
+    quote({
+      jeff <- rep_len('jeff', nrow(mtcars))
+      mtcars$jeff <- jeff
+      mtcars
+    }),
+    new.env()
+    # It's evaluated in new.env(), BUT new.env() will still look up the
+    #   hierarchy and access everything in .GlobalEnv. So the effect is
+    #   that NEW variables are stored in the new environment, but you still
+    #   do everything else like it's in the previous environment.
+  ))
+  # Couple of examples
+  
+  subd <- substitute(evald)
+  # So this'll substitute the evaluated expression WITHIN THE CURRENT
+  #   EVALUATION ENVIRONMENT, which is the function call (I think).
+  # I'm not why the call to substitute is necessary...
+  # I think the point of this is so that you can return variables,
+  #   promises, and other fun stuff that you'd want to evaluate in the
+  #   parent.frame. So if you have a chunk of code that you're running in
+  #   local(), and at the end, instead of returning c(1, 2, 3) or 'jeff',
+  #   you want to return mtcars, mean, subset2, you'd want to return the
+  #   underlying thing, NOT quoted code that says 'mtcars' or 'subset2'.
+  # I think this is actually the opposite: if you return a variable with
+  #   some underlying thing, the call to substitute avoids evaluating it,
+  #   SO YOU CAN EXPLICITLY EVALUATE IT IN THE PARENT.FRAME via
+  #   eval.parent, instead of evaluating it in the new.env() that you made.
+  # So let's see if that's true:
+  jeff <- FALSE
+  evald <- eval(
+    quote({
+      jeff <- TRUE
+      jeff
+    }),
+    new.env()
+  )
+  evald
+  eval.parent(substitute(eval(
+    quote({
+      # jeff <- TRUE
+      jeff
+    }),
+    new.env()
+  )))
+
+  eval.parent(subd)
+  # I think this calls eval, one 'frame' up the environment hierarchy (??),
+  #   or maybe it 
+
+  # Step 1: Evaluate the expression in a new environment
+  # Step 2: Substitute the evaluated expression, swapping quoted code for
+  #   variables bound to the current environment (which I think here would
+  #   be .GlobalEnv).
+  #   This might be for when something evaluates to a variable (or
+  #     something).
+  # Step 3: evaluate the substituted output in the parent.frame of the 
+  #   call to local2
+}
+
+# Exercises: 1 =================================
+
+test <- function(df, ...) {
+  substitute(order(...))
+}
+test(mtcars, mpg)
+
+plyr::arrange <- function (df, ...) {
+  # Simple, but abstract. So weird.
+
+  stopifnot(is.data.frame(df))
+  # Error handling
+
+  ord <- eval(substitute(order(...)), df, parent.frame())
+  # This just calls order on the dots.
+  # So if you input mpg, cyl, then calling substitute(order(...)) will
+  #   result in order(mpg, cyl). Which you don't evaluate yet! I think this
+  #   is an example of a call.
+  # Then WHEN you evaluate the substitute(order(mpg, cyl)), you do it
+  #   within the df list, and you make the enclosing environment the parent
+  #   frame(), so if you don't find the argument in df, you'll then look in
+  #   the environment of the function call (where you called arrange from).
+  # So in effect, eval(substitute(order(mpg, cyl)), df, parent.frame()) is like
+  #   saying order(df$mpg, df$cyl) and storing it as ord. For 'order'.
+
+  if (length(ord) != nrow(df)) {
+    stop("Length of ordering vectors don't match data frame size", 
+      call. = FALSE)
+  }
+  # Error handling
+  
+  unrowname(df[ord, , drop = FALSE])
+  # unrowname just strips row names and returns the DF
+  # Return the data frame with row orders from the 'ord' variable.
+}
+# Exercises: 1 =================================
+
+# Exercises: 2 =================================
+test <- function(df, ...) {
+  eval(substitute(list(...)), df)
+}
+test(mtcars, mpg = -mpg, cyl = cyl + 99)
+
+transform.data.frame2 <- function (`_data`, ...) {
+
+  e <- eval(substitute(list(...)), `_data`, parent.frame())
+  # Throw the dots into a list, then evaluate the list within the `_data`
+  #   list.
+  # So you have list(mpg = -mpg, cyl = cyl + 99), quoted.
+  # Then you evaluate list(mpg = -mpg, cyl = cyl + 99) within `_data`, so
+  #   list(mpg = -mtcars$mpg, cyl = mtcars$cyl + 99). Interesting that the
+  #   list names don't seem to evaluate.
+  # When the expressions evaluate per eval, they'll be 
+  #   list(mpg = -mtcars$mpg, cyl = mtcars$cyl + 99)
+
+  tags <- names(e)
+  # tags are the names of the fields that you're 'transforming'.
+
+  inx <- match(tags, names(`_data`))
+  # Get the locations of the matches, a la
+  #   match(c('mpg', 'cyl'), names(mtcars)) => c(1, 2)
+
+  matched <- !is.na(inx)
+  # Boolean of inx's where there was actually a match
+
+  if (any(matched)) {
+    `_data`[inx[matched]] <- e[matched]
+    # mtcars[c(TRUE, TRUE)] <- list(mpg = -mtcars$mpg, cyl = mtcars$cyl + 99)[c(TRUE, TRUE)]
+    # So it reassigns the columns that you're specifying, and adds the
+    #   evaluated expressions as the replacements.
+    `_data` <- data.frame(`_data`)
+    # Then you turn the list back into a data frame.
+  }
+
+  if (!all(matched))
+    do.call("data.frame", c(list(`_data`), e[!matched]))
+    # If everything didn't match, add the columns of the stuff that didn't match.
+    # So transform(mtcars, dkdk = 10), you're saying
+    #   data.frame(c(list(mtcars), dkdk = 10))
+  else `_data`
+    # But if everything matched, just return the data frame as is.
+
+}
+transform.data.frame2(mtcars, mpg, cyl)
+
+# So transform turns the arguments you give it into a list, it evaluates
+#   the arguments within the data frame you give it.
+# Then it either replaces the existing fields with the newly evaluated
+#   ones, or it adds them to the data frame.
+# Again, this is clever and it seems super abstract.
+# Exercises: 2 =================================
+
+# Exercises: 3 =================================
+df <- data.frame(x = 1:5)
+transform(
+  df,
+  x2 = x * x,
+  x3 = x2 * x
+)
+plyr::mutate(
+  df,
+  x2 = x * x,
+  x3 = x2 * x
+)
+
+test <- function(.data, ...) {
+  substitute(list(...))
+
+  # substitute(list(...))[-1]
+  # THROW OUT THE LAST ITEM IN THE OUTPUT FROM substitute(); didn't know
+  #   you could index output from substitute(). Weird.
+
+  # as.list(substitute(list(...))[-1])
+  # as.list(substitute(list(x2 = x * x, x3 = x2 * x))[-1])
+  # Then you 
+}
+test(
+  df, 
+  x2 = x * x,
+  x3 = x2 * x
+)[-1]
+
+plyr::mutate <- function (.data, ...) {
+  stopifnot(is.data.frame(.data) || is.list(.data) || is.environment(.data))
+  # Input error handling
+
+  cols <- as.list(substitute(list(...))[-1])
+  # No idea how this works.
+  # But the point of this is that it takes the input dots and turns them
+  #   into a list WHERE THE ELEMENTS ARE SUBSTITUTED/QUOTED EXPRESSIONS. SO
+  #   YOU CAN HAVE VARIABLES THAT AREN'T DEFINED IN THE parent.frame().
+  as.list(list(x2 = x * x, x3 = x2 * x)[-1])
+
+  cols <- cols[names(cols) != ""]
+  
+  for (col in names(cols)) {
+    # So this CHANGES THE PARENT.FRAME() OR WORKING DATA FRAME
+    #   SEQUENTIALLY, SO YOU CAN ADD OR CHANGE COLS, THEN EVALUATE THE
+    #   EXPRESSION TO DEFINE NEW COLS OR CHANGE EXISTING COLS BASED ON
+    #   ALREADY MODIFIED COLS. Trippy...
+    .data[[col]] <- eval(cols[[col]], .data, parent.frame())
+  }
+  
+  .data
+}
+# With transform(), you evaluate everything once at the top, then match the
+#   evaluated stuff 
+# Exercises: 3 =================================
+
+# Exercises: 4 =================================
+# What does with() do? How does it work?. Read source for with.default
+with.default <- function (data, expr, ...) {
+  eval(substitute(expr), data, enclos = parent.frame())
+}
+# This evaluates an expression within an environment made of data
+# Note the inclusion of the enclose = parent.frame(), which says that if
+#   you can't find something in 'data', look in the environment of the call
+#   to with.default().
+# So it'll substitute everything in the expression with any variables found
+#   in 'data'.
+with(mtcars, {
+  mtcars2 <- transform(mtcars, mpg2 = mpg/mean(mpg), jeff = 'jeff')
+  summary(mtcars2)
+})
+mt2 <- with(mtcars, {
+  mpg2 <- mpg + cyl + disp
+  jeff <- 'jeff'
+  # same as # mpg2 <- mtcars$mpg + mtcars$cyl + mtcars$disp
+  sum(mpg2)
+  # This swaps the variables to get the data bound to them in the mtcars
+  #   environment, BUT IT STORES EVERYTHING NEW WITHIN THE EXPRESSION.
+})
+
+
+# What does within() do? How does it work?
+aq <- within(airquality, {     # Notice that multiple vars can be changed
+  lOzone <- log(Ozone)
+  Month <- factor(month.abb[Month])
+  cTemp <- round((Temp - 32) * 5/9, 1) # From Fahrenheit to Celsius
+  S.cT <- Solar.R / cTemp  # using the newly created variable
+  # JMM: It's interesting because it looks like the variables in this
+  # expression / local environment are just automatically added to the data
+  # frame \ input, then you return it.
+  # So new variables are stored to the 'environment' you're evaluating in,
+  #   and then you return the new 'environment' back. So you can add or
+  #   subtract stuff, instead of just substituting variable names for the
+  #   variable values in the object.
+  # So like instead of just calling
+  #   eval(substitute(<some expression>), <some environment>), it's almost
+  #   more like turning the data frame into an environment, evaluating the
+  #   expression in that environment, and then turning that environment
+  #   back into a data frame. So you can add and remove stuff. DEFINITELY
+  #   A VERY DIFFERENT WAY OF WORKING WITH AND THINKING ABOUT LISTS.
+  rm(Day, Temp)
+})
+head(aq)
+
+# Read source for within.data.frame(). Why is it so much more complex than with(?)
+
+test <- function(data, expr, ...) {
+  parent <- parent.frame()
+  # cat(parent)
+  print(parent)
+
+  this_env <- environment()
+  print(this_env)
+
+  e <- evalq(environment(), data, parent)
+  # Why is 'e' a different environment than this_env?
+  print(e)
+}
+test(mtcars, mpg = mpg + 1)
+
+# Reading about environments:
+# A FRAME is a collection of named objects.
+#   So this could be the frame of variables local to a function call.
+# An environment is a frame and a pointer to an enclosing environment.
+#   An enclosing environment could be the environment where you defined a
+#   function.
+# The 'parent frame' is the environment of the caller of a function.
+#   So I think this would be getting the environment where you call a
+#   function, AS OPPOSED TO WHERE YOU DEFINED IT.
+# Kind of a subtle difference between enclosing environment and parent
+#   frame.
+# Functions like get() and exists() will look in a frame, then go up to the
+#   enclosing frame, and so forth. NOT SURE WHY THIS IS DIFFERENT THAN
+#   LOOKING THRU AN ENVIRONMENT, THAN UP THRU THE NEXT ENVIRONMENT, AND SO
+#   FORTH UP THE SEARCH PATH.
+# A call to environment() returns the current evaluation environment.
+
+within.data.frame <- function(data, expr, ...) {
+  parent <- parent.frame()
+  # Save the parent.frame as an environment
+  # This is the global environment if you're calling from the global
+  #   environment. But generally, it's the environment of the call to
+  #   within().
+  # So THIS WILL JUST STORE THE ENVIRONMENT THAT YOU'RE CALLING THE 
+  #   within() FUNCTION. So I guess you could use this to look up variables
+  #   outside of the function frame, or use an en enclosing environment
+  #   in an eval() call.
+
+  e <- evalq(environment(), data, parent)
+  # Quote the expression you want to evaluate, evaluate it in the
+  #   environment of the data you're inputting, and enclos evaluation to
+  #   the parent frame environment.
+  # Not sure why the parent frame is stored in a variable above.
+  # Here, environment() stores the environment INSIDE OF THIS FUNCTION
+  #   FRAME.
+  # So you're quoting everything in here, evaluating it in the 'data'
+  #   environment, and enclosing evaluation to the parent.frame(), so if
+  #   you don't find something, the search path goes outside of the call to
+  #   within(). But are you evaluating the parent.frame() within 'data'??
+  # THE POINT OF THIS IS TO CONVERT YOUR INPUT DATA FRAME INTO AN
+  #   ENVIRONMENT. 
+
+  eval(substitute(expr), e)
+  # Substitute any variables in the expression with variables defined in
+  #   the 'e', output from previous evaluation.
+  # Then evaluate the expression within 'e'.
+  # Not SURE WHAT THIS MEANS.
+  # Here, you evaluate the input expression IN THE ENVIRONMENT THAT YOU
+  #   MADE AND STORED AS 'e'. SO ALL THE VARIABLES YOU'RE MANIPULATING ARE
+  #   THE VARIABLES IN THE 'data' DATA FRAME. This is the main workhorse of
+  #   the within function.
+
+  l <- as.list(e)
+  # Convert the environment you've been evaluating stuff in to a list.
+  # Convert the environment into a list, that you can use to smush back
+  #   into a data frame for output.
+
+  l <- l[!vapply(l, is.null, NA, USE.NAMES = FALSE)]
+  # Throw out anything that's null. I like the functional/function operator
+  #   way of doing this better.
+
+  nD <- length(
+    del <- setdiff(names(data), (nl <- names(l)))
+    # del is any names in the input data that aren't in the list of
+    #   evaluated stuff.
+    # Store names of everything in list of evaluated stuff as nl.
+    # It's interesting that you're assigning a variable here and computing
+    #   length() simultaneously.
+  )
+
+  data[nl] <- l
+  # Assign elements of data that were evaluated to the evaluated elements
+  #   themselves.
+
+  if (nD) {
+    # I HAD NO IDEA if() STATEMENTS WOULD ACCEPT INTEGERS AS BOOLEANS!!!
+    #   if(0) TRUE else FALSE
+    #   if(1) TRUE else FALSE
+
+    data[del] <- if (nD == 1) NULL
+    # I think this means that if there aren't any differences, assign the
+    #   things in data that are missing from the evaluated stuff to NULL.
+    # Otherwise, leave them as is.
+  } else {
+    vector("list", nD)
+    #  
+  }
+
+  data
+  # Return the modified data
+}
+# The essense of this function is: convert to environment, evaluate
+#   everything within that environment, then convert back to object. This
+#   allows more for flexible evaluation rules; e.g. changing fields and
+#   then changing subsquent fields based on the one you changed within the
+#   call.
+# I STILL DON'T UNDERSTAND HOW EVERYTHING IN within() WORKS, BUT I THINK I
+#   GET THE GIST OF IT.
+within(mtcars, {
+  mpg <- mpg + 99
+  mpg <- mpg*100
+  jeff <- rep('jeff', nrow(mtcars))
+})
+with(mtcars, {
+  mpg <- mpg + 99
+  mpg <- mpg*100
+  jeff <- rep('jeff', nrow(mtcars))
+})
+mywithin <- function(data, expr) {
+  # this is my simple version of within(), which could be used as a SUPER
+  #   COOL alternative to plyr::mutate()
+  my_env <- new.env()
+  # Make new environment to evaluate the expression and store all the data
+  #   frame variables in.
+  list2env(data, my_env)
+  # Throw everything in your input data into the new environment you just
+  #   made
+  eval(substitute(expr), envir = my_env, enclos = parent.frame())
+  # Evaluate the input expression IN THE ENVIRONMENT YOU JUST MADE. So
+  #   you're running all the code, but it's LOCAL to my_env. BUT YOU CAN
+  #   STILL PULL FROM .GlobalEnv!
+  # NOTE THAT YOURE EVALUATING, SO EVERY MODIFIED VARIABLE, EVERY NEW
+  #   VARIABLE, ETC., IS STORED THERE AND NOT RETURNED. THIS DOESN'T RETURN
+  #   ONE SINGLE OBJECT, LIKE I FEEL LIKE I SHOULD. It's WEIRD TO CALL A
+  #   FUNCTION TO MAKE A BUNCH OF NEW STUFF AND NOT STORE THAT STUFF IN A
+  #   NEW VARIABLE.
+  as.data.frame(as.list(my_env))
+  # Throw everything in youre cool new environment back into the original
+  #   data structure that you want.
+}
+mywithin(mtcars, {
+  mpg <- mpg + 999
+  jeff <- gear - gear
+  sl <- Sepal.Length[1:nrow(mtcars)] # pull something in from globalenv()
+})
+
+identical( 
+  within(iris, { 
+    Sepal.Length <- round(Sepal.Length / 2) 
+  }), 
+  { 
+    iris$Sepal.Length <- with(iris, 
+      {Sepal.Length <- round(Sepal.Length / 2); Sepal.Length} 
+    ) 
+    iris 
+  } 
+) 
+# Exercises: 4 =================================
+# scoping issues ----------------------------------------
+
+
+# calling from another function -------------------------
+rm('a')
+subset2 <- function(x, condition) {
+  condition_call <- substitute(condition)
+  # SO IF YOU CALL THIS IN GLOBALENV, 'condition', IS (I THINK) CONSIDERED
+  #   A PROMISE, SO substitute() MAKES SURE TO SWAP condition FOR THE
+  #   EXPRESSION THAT IT ACTUALLY REPRESENTS, AS OPPOSED TO THE TEXT
+  #   'condition'
+  # SO I THINK THE PROBLEM HERE IS THAT, IF YOU CALL IT INSIDE OF ANOTHER
+  #   FUNCTION, YOU JUST CALL IT ON THE TEXT 'condition', AND IT DOESN'T
+  #   GET SUBSTITUTED FOR ANOTHER VALUE.
+  r <- eval(condition_call, x, parent.frame()) # eval the substituted condition in the df
+  x[r, ]
+}
+
+substitute(condition)
+# condition isn't defined in .GlobalEnv, so this should return quoted text,
+#   because the 'env' argument is the current evaluation environment
+test <- function(condition) {
+  substitute(condition)
+  # But here, condition is a variable in the current evaluation
+  #   enivronment, which is the environment within the function brackets.
+}
+test(mtcars)
+
+scramble <- function(x) x[sample(nrow(x)), ]
+
+subscramble <- function(x, condition) {
+  scramble(subset2(x, condition))
+}
+
+sample_df <- data.frame(
+  a = 1:5, 
+  b = 5:1, 
+  c = c(5, 3, 1, 4, 1)
+)
+subscramble(sample_df, a >= 4)
+# Still not sure why this doesn't work...
+traceback()
+debugonce(subset2)
+
+subscramble(sample_df, a >= 4)
+
+a <- 4
+subscramble(sample_df, a == 4)
+a <- c(1, 1, 4, 4, 4, 4)
+subscramble(sample_df, a >= 4)
+# Still not sure why this doesn't work...
+
+# REWRITE TO MAKE IT TAKE QUOTED INPUT
+subset2_q <- function(x, condition) {
+  r <- eval(condition, x, parent.frame())
+  x[r, ]
+}
+subset2 <- function(x, condition) {
+  subset2_q(x, substitute(condition))
+}
+
+subscramble <- function(x, condition) {
+  # STILL NOT SURE WHY THIS WORKS AND THE OTHER ONE DOESN'T
+  condition <- substitute(condition)
+  # But i guess the rule is that you have to call substitute outside of the 
+  #   function.
+  scramble(subset2_q(x, condition))
+}
+
+subscramble(sample_df, a >= 3)
+
+# Some base functions have an argument that turns off NSE, but HW prefers
+#   to just have a separate function. To avoid having one argument that
+#   changes another argument.
+
+
+# Exercises - 1 ==============================
+# Read documentation and find the escape hatch.
+rm
+# Looks like these can be unquoted names or character strings.
+# Not sure what the docs mean by quoted character strings.
+a <- 'jeff'
+rm(a)
+a <- 'jeff'
+rm('a')
+rm <- function(..., list = character(), pos = -1, envir = as.environment(pos),
+                inherits = FALSE) {
+  dots <- match.call(expand.dots = FALSE)$...
+  if (length(dots) && !all(vapply(dots, function(x) is.symbol(x) || 
+    is.character(x), NA, USE.NAMES = FALSE))) 
+    stop("... must contain names or character strings")
+  names <- vapply(dots, as.character, "")
+  # So I think it's something like:
+  # [1] Save the dots as a variable
+  # [2] Then convert all the dots to character. I don't think you can just
+  #   convert names to character...
+  if (length(names) == 0L) names <- character()
+  list <- .Primitive("c")(list, names)
+  .Internal(remove(list, envir, inherits))
+}
+
+x <- 2 
+y <- 'x' 
+z <- 'x' 
+rm(z)  # Removes z, but x and y still exist
+# Standard eval, so it'll throw out the variable bound to the value 'z'
+rm(list = y)  # Removes x, but y still exists 
+# Evaluates 'y' to get to 'x', then throws out the variable bound to the
+#   value 'x'. So the variable bound to 'y' remains the same.
+
+library
+# character.only = TRUE
+
+require
+# character.only = TRUE
+
+substitute
+# How NSE? What's the escape hatch?
+# If something is a promise, the expression slot of the promise replaces
+#   the symbol
+# Substitute if it's an ordinary variable, unless the env is .GlobalEnv
+# SO I THINK THE ESCAPE HATCH MIGHT BE: SAYING THAT env IS GLOBALENV, THEN
+#   YOU DON'T SWAP ANY OF THE VARIABLES. i think.
+
+data
+# The dots can either be character strings or names.
+# I suppose you could specify the 'list' argument if you DEFINITELY want to
+#   use character strings and never names.
+# It's kind of awkward, with data() and rm(), to have a ... promise that
+#   can take names or strings, and a list = character() promise, that only
+#   should take strings, and then lump the two together later. weird.
+
+data.frame
+# It's interesting that this rears its head again:
+test <- function(...) {
+  # list(...)
+  # This just evaluates as normal, with tags as element names
+
+  # substitute(list(...))
+  # This keeps everything from being evaluated
+  # So you're at this quoted expression: list(a = 1:5, b = 10:15)
+
+  # as.list(substitute(list(...)))
+  # So I guess you can convert the quoted list call to a list...
+
+  # as.list(substitute(list(...)))[-1L] 
+  # The first item is [[1]] list, so you throw that out with [-1L]
+
+  # NOW YOU HAVE A LIST OF THE tags and values/expressions FOR INPUT, BUT
+  #   THE VALUES/EXPRESSIONS ARE NOT EVALUATED.  
+}
+test(a = 1:5, b = 10:15)
+# I think that data.frame uses NSE for naming fields.
+# So if you do something like data.frame(letters), it'll
+#   deparse(substitute(letters)) to name the field, then it'll evaluate
+#   letters to be the values within that field.
+# Exercises - 1 ==============================
+
+
+# Exercises - 2 ==============================
+# How do they figure out if you want NSE or not?
+match.fun
+# If you input a function, NOT a character string, it'll return the
+#   function.
+# If it's NOT a char scalar or a symbol, store it as FUN and evaluate it in
+#   the parent. Not sure I understand the substitute(substitute(<args>))
+#   call. SO THIS IS WHERE IT USES NSE.
+# So basically, it'll see if it's a function, then it'll see if it's a
+#   character or a symbol. If it doesn't find anything, it'll go up the
+#   search path a level and look for a function. If it doesn't find a
+#   function, it'll look for a non-function.
+
+page
+# This prints an object's internal representation to a new window in the
+#   GUI.
+# If it's character and length is 1, then look up the variable using get()
+# If it's not character / length isn't 1, then deparse(substitute(<it>))
+# So basically it'll just test to see if it's a char scalar. If it is,
+#   it'll look it up, if it isn't, it'll deparse and subsitute the object
+#   itself / use NSE.
+# I'm still a little fuzzy on exactly how this function works...
+
+ls
+# This'll substitute the the 'name', and deparse it if it isn't already a
+#   character string.
+# Exercises - 2 ==============================
+
+
+# Exercises - 3 ==============================
+plyr::mutate <- function(.data, ...) {
+  stopifnot(is.data.frame(.data) || is.list(.data) || is.environment(.data))
+  cols <- as.list(substitute(list(...))[-1])
+  cols <- cols[names(cols) != ""]
+  for (col in names(cols)) {
+    .data[[col]] <- eval(cols[[col]], .data, parent.frame())
+  }
+  .data
+}
+
+mutate_q <- function(.data, cols) {
+  # This one mutates using the captured input
+
+  stopifnot(is.data.frame(.data) || is.list(.data) || is.environment(.data))
+
+  # cols <- as.list(substitute(list(...))[-1])
+  # This is basically the step you're pulling out from the standard
+  #   mutate() and putting in to the function that calls mutate_q, to make
+  #   sure that the NSE doesn't break.
+  # Still not sure why it wouldn't work in the first place...
+
+  cols <- cols[names(cols) != ""]
+  for (col in names(cols)) {
+    .data[[col]] <- eval(cols[[col]], .data, parent.frame())
+  }
+  .data
+}
+mutate2 <- function(.data, ...) {
+  # This one captures the input
+
+  # Dots are the tag = expression, tag = expression, etc.
+  mutate_q(.data, as.list(substitute(list(...))[-1]))
+}
+# Exercises - 3 ==============================
+
+
+# Exercises - 4 ==============================
+ggplot2::aes <- function(x, y, ...) {
+  aes <- structure(as.list(match.call()[-1]), class = "uneval")
+  rename_aes(aes)
+  # So I guess this is basically just a NSE wrapper for a normal function?
+  # So it wrangles the expression into standard stuff, then calls a normal
+  #   function on the standard stuff.
+}
+
+plyr::. <- function (..., .env = parent.frame()) {
+  structure(as.list(match.call()[-1]), env = .env, class = "quoted")
+  # I think just turns a normal expression into an unevaluated one.
+  # Probs so you can call use it to throw the unevaluated input into a
+  #   function with the NSE 'escape hatch' turned on.
+
+  # Kinda hard to figure out the source when I don't even know what the
+  #   function does.
+  # But I think it just takes the unevaluated inputs, makes them into a
+  #   list, and then keeps the evaluation environment as an attribute.
+  # But I guess this makes a list of unevaluated expressions for later
+  #   evaluation. (So you can delay evaluation until you're in the right
+  #   environment.)
+}
+
+# match.call is WAY over my head...
+# Hard to understand this when I don't know what match.call() is:
+test <- function(...) {
+  print(match.call())
+}
+test(letters, mtcars)
+
+test <- function(x, y, ...) {
+  print(match.call())
+}
+test(letters, mtcars)
+
+test <- function(...) {
+  print(match.call(expand.dots = FALSE))
+}
+test(letters, mtcars)
+
+x <- list(mtcars, letters)
+plyr::.(a, b, c)
+plyr::.(first = a, second = b, third = c)
+plyr::.(a ^ 2, b - d, log(c))
+plyr::as.quoted(~ a + b + c)
+plyr::as.quoted(a ~ b + c)
+plyr::as.quoted(c("a", "b", "c"))
+# Exercises - 4 ==============================
+
+
+# Exercises - 5 ==============================
+# old -----------------
+subset2_q <- function(x, condition) {
+  r <- eval(condition, x, parent.frame())
+  x[r, ]
+}
+subset2 <- function(x, condition) {
+  subset2_q(x, substitute(condition))
+}
+
+subscramble <- function(x, condition) {
+  # STILL NOT SURE WHY THIS WORKS AND THE OTHER ONE DOESN'T
+  condition <- substitute(condition)
+  # But i guess the rule is that you have to call substitute outside of the 
+  #   function.
+  scramble(subset2_q(x, condition))
+}
+
+subscramble(sample_df, a >= 3)
+# old -----------------
+
+# new -----------------
+subset2_q <- function(x, cond, env = parent.frame()) {
+  # This is different than the first one in that the user can set the env,
+  #   instead of always evaluating having the environment of the function
+  #   call be the evaluation environment.
+  r <- eval(cond, x, env)
+  x[r, ]
+}
+
+subset2 <- function(x, condition) {
+  subset2_q(x, substitute(condition))
+}
+
+subscramble <- function(x, condition, env = parent.frame()) {
+  # STILL NOT SURE WHY THIS WORKS AND THE OTHER ONE DOESN'T
+  condition <- substitute(condition, env)
+  # But i guess the rule is that you have to call substitute outside of the 
+  #   function.
+  scramble(subset2_q(x, condition, env))
+}
+# new -----------------
+# Exercises - 5 ==============================
+# calling from another function -------------------------
+
+
+# substitute --------------------------------------------
+pryr::subs() # is substitute but WILL MAKE SUBSTITUTIONS FOR VARIABLES IN
+#   THE GLOBAL ENVIRONMENT.
+
+# Make substitutions in something you explicitly define:
+subs(a + b, list(a = 'y'))
+subs(a + b, list(a = quote(y)))
+subs(a + b, list(a = quote(y())))
+subs(a + b, list('+' = quote(f)))
+# This is interesting in that it changes a + b to `+`(a, b), then
+#   subsitutes `+` for f
+subs(a + b, list('+' = quote(*)))
+
+# Can't turn off NSE within substitute:
+x <- quote(a + b)
+substitute(x, list(a = 1, b = 2))
+# substitute --------------------------------------------
+
+
+
+# CHALLENGE: might want to work thru this Re local =============
+##
+## Uses of local()
+##
+
+# Mutually recursive.
+# gg gets value of last assignment, an anonymous version of f.
+gg <- local({
+  k <- function(y) f(y)
+  f <- function(x) if(x) x*k(x-1) else 1
+})
+gg(10)
+sapply(1:5, gg)
+
+# Nesting locals: a is private storage accessible to k
+gg <- local({
+  k <- local({
+    a <- 1
+    function(y){
+      print(a <<- a+1)
+      f(y)
+    }
+  })
+  f <- function(x) if (x) x*k(x - 1) else 1
+})
+sapply(1:5, gg)
+
+ls(envir = environment(gg))
+ls(envir = environment(get("k", envir = environment(gg))))
+# CHALLENGE: might want to work thru this Re local =============
+# NSE =========================================================================
+
+
+
+
+# jumping ahead to NSE and Expressions ----------------------------------------
+# parse() turns text / character vect into code, while deparse() turns code
+#   into text.
+# substitute() keeps an expression as an unevaluated expression. So 
+#   substitute(10 + 10) remains 10 + 10; it isn't evaluated to 20.
+#   substitute(mtcars) returns the variable mtcars, or the reference to
+#   mtcars, not the data frame itself.
+substitute(1 + 1 + 1)
+quote(1 + 1 + 1) # not sure how quote() is different
+# deparse(substitute()) turns an expression into a character vector.
+deparse(substitute(1 + 1 + 1))
+# eval() evaluates an expresssion. So you could use substitute() to prevent
+#   evaluation, but when you want to evaluate it, you'd call eval(). One of
+#   the advantages of eval() is you can determine the environment that you're
+#   evaluating the expression in. So if you want input arguments to be the
+#   column name of a data frame, you'd evaluate in the environment of the
+#   data frame, instead of the globalenv(). This is how subset() and ddply()
+#   work. So mpg would refer the the element in mtcars, instead of an object
+#   in global environment.
+# And I guess you'd prevent an error when passing args in a function, because
+#   you'd just prevent them from being evaluated until you call them,
+#   explicitly within the environment of the object you want.
+r_code <- parse(text = '1 + 1 + 1')
+eval(r_code)
+# jumping ahead to NSE and Expressions ----------------------------------------
+
+
+# vapply() different outputs --------------------------------------------------
+sapply(mtcars, mean)
+
+sapply(mtcars, mean, na.rm = TRUE)
+
+sapply(mtcars, mean, simplify = FALSE)
+
+sapply(mtcars, mean, USE.NAMES = FALSE)
+sapply(mtcars, mean, USE.NAMES = TRUE)
+
+chars <- data.frame(fir = letters[1:3], sec = letters[3:1])
+chars <- data.frame(letters[1:3], letters[3:1])
+chars <- list(letters[1:3], letters[3:1])
+
+sapply(chars, function(x) x[1])
+sapply(chars, function(x) x[1], USE.NAMES = FALSE)
+sapply(chars, function(x) x[1], USE.NAMES = TRUE)
+sapply(chars, function(x) x[1], simplify = FALSE, USE.NAMES = FALSE)
+sapply(chars, function(x) x[1], simplify = TRUE, USE.NAMES = FALSE)
+sapply(chars, function(x) x[1], simplify = FALSE, USE.NAMES = TRUE)
+sapply(chars, function(x) x[1], simplify = TRUE, USE.NAMES = TRUE)
+
+get_two <- function(x) x[1:2]
+sapply(chars, get_two)
+sapply(chars, get_two, simplify = FALSE)
+vapply(chars, get_two, character(2))
+# vapply() different outputs --------------------------------------------------
+
+
+
+# SQL / connections ===========================================================
+# https://cran.r-project.org/doc/manuals/r-release/R-data.html
+library(RODBC)
+
+channel <- odbcConnectExcel(
+  'My Documents/Laureano; 10-13-14 J. Marra - Data Analysis/From Client - Class Census Sheet/CA Census .xls'
+)
+
+channel <- odbcConnectExcel2007(
+  'My Documents/Laureano; 10-13-14 J. Marra - Data Analysis/From Client - Class Census Sheet/CA Census .xls'
+)
+
+sqlTables(channel)
+sh1 <- sqlFetch(channel, 'BEV CENSUS')
+sh1q <- sqlQuery(channel, 'SELECT * FROM [BEV CENSUS$]')
+sqlQuery(channel, 'SELECT * FROM [BEV CENSUS$] WHERE FULL NAME = Armstrong, Colin')
+
+# Windows users (of 32-bit R) can use odbcConnectExcel in package RODBC.
+#   This can select rows and columns from any of the sheets in an Excel
+#   spreadsheet file (at least from Excel 97–2003, depending on your ODBC
+#   drivers: by calling odbcConnect directly versions back to Excel 3.0 can
+#   be read). The version odbcConnectExcel2007 will read the Excel 2007
+#   formats as well as earlier ones (provided the drivers are installed,
+#   including with 64-bit Windows R: see RODBC)
+# SQL / connections ===========================================================
+

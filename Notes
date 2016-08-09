@@ -4448,23 +4448,250 @@ subscramble <- function(x, condition, env = parent.frame()) {
 
 
 # substitute --------------------------------------------
+a <- 1
+b <- 2
+substitute(a + b + z)
+# Doesn't substitute in global environment
+
+f <- function() {
+  a <- 1
+  b <- 2
+  substitute(a + b + z)
+}
+f()
+# Substitutes in non-global environment
+
+pryr::subs(a + b + z)
+# Same as substitute, but works in global environment
+# Note that the default value is the CURRENT environment
+
 pryr::subs() # is substitute but WILL MAKE SUBSTITUTIONS FOR VARIABLES IN
 #   THE GLOBAL ENVIRONMENT.
 
 # Make substitutions in something you explicitly define:
 subs(a + b, list(a = 'y'))
+# Because a list, dataframe, or environment can be used as an environment!
+subs(a + b, list(a = 'jeff', b = 'solomon'))
+subs(a + b, list(a = 'jeff', b = 'solomon', `+` = 'and'))
+
 subs(a + b, list(a = quote(y)))
+# Quoting y means to substitute the symbol a with the y symbol, not to
+#   look up the data bound to the y symbol in the global environment
+subs(a + b, list(a = y))
+# So this fails because you're looking for data bound to the y symbol in
+#   the global environment and not finding anything.
+
 subs(a + b, list(a = quote(y())))
+# This substitutes the symbol a with the function call y(). Note that y is
+#   a name and y() is a call.
+
 subs(a + b, list('+' = quote(f)))
 # This is interesting in that it changes a + b to `+`(a, b), then
 #   subsitutes `+` for f
-subs(a + b, list('+' = quote(*)))
+subs(a + b, list('+' = quote(`*`)))
 
 # Can't turn off NSE within substitute:
 x <- quote(a + b)
 substitute(x, list(a = 1, b = 2))
+# So looks like this works by looking for a and b symbols in the
+#   expression. The expression is just x, so it doesn't find anything,
+#   and it doesn't evaluate x first.
+substitute(eval(x), list(a = 1, b = 2))
+# 'Can't turn off NSE' means that expr will ALWAYS be treated as
+#   unevaluated R code; the expr argument will never be evaluated in any
+#   environment, it'll always be quoted directly as it's supplied.
+# There's no escape hatch that'll evaluate expr in the global environment
+#   before passing to substitute()'s body.
+
+x <- quote(mpg)
+y <- quote(disp)
+subs(xyplot(x ~ y, data = mtcars))
+# So this swaps the x and y symbols with their values, the mpg and disp
+#   symbols.
+# This creates a call where you have mpg and disp instead of x and y,
+#   and you're evaluating within the mtcars list / dataframe / environment.
+
+xyplot2 <- function(x, y, data = data) {
+  substitute(xyplot(x ~ y, data = data))
+  # This replaces the PROMISE with the expression bound to the promise;
+  #   in this case still mpg and disp symbols.
+  # So x is the variable and mpg is the expression. it'll swap x with the
+  #   mpg symbol, y with the disp symobl, and data with the mtcars symbol,
+  #   before calling substitute.
+  # Calling substitute will return a call with the proper variables that
+  #   you can execute.
+}
+xyplot2(mpg, disp, data = mtcars)
+
+xyplot3 <- function(x, y, ...) {
+  substitute(xyplot(x ~ y, ...))
+}
+xyplot3(mpg, disp, data = mtcars, col = 'red', aspect = 'xy')
+# Same as above, but swaps the the ... with the data supplied to ... in
+#   the function call.
 # substitute --------------------------------------------
 
+
+# adding escape hatch to substitute ---------------------
+x <- quote(a + b)
+substitute(x, list(a = 1, b = 2))
+# Again, standard evaluation would evaluate x to language a + b before
+#   evaluating substitute.
+
+substitute_q <- function(x, env) {
+  call <- substitute(
+    substitute(y, env),
+    list(y = x)
+  )
+  eval(call)
+}
+
+
+substitute_q {
+  call <- substitute(quote(a + b), env)
+  eval(call)
+}
+
+substitute_q {
+  eval(substitute(quote(a + b), env))
+}
+
+substitute_q {
+  eval(substitute(quote(a + b), list(a = 1, b = 2)))
+}
+
+substitute_q {
+  quote(1 + 2)
+}
+
+
+x <- quote(a + b)
+substitute_q(x, list(a = 1, b = 2))
+# adding escape hatch to substitute ---------------------
+
+
+# capturing unevaluated ... -----------------------------
+dots <- function(...) {
+  eval(substitute(alist(...)))
+}
+dots(na.rm = TRUE, first = FALSE)
+pryr::dots(na.rm = TRUE, first = FALSE)
+pryr::named_dots(na.rm = TRUE, FALSE)
+# No idea how this works...
+
+dots2 <- function(...) {
+  list(...)
+}
+dots2(na.rm = TRUE, first = FALSE)
+
+dots3 <- function(...) {
+  alist(...)
+}
+dots2(na.rm = TRUE, first = FALSE)
+
+x <- quote(a + b)
+dots(expr = x, first = FALSE)
+dots2(expr = x, first = FALSE)
+dots3(expr = x, first = FALSE)
+
+# I think this is complicated because I'm not familiar with alist()...
+# I think the difference here is that you want UNEVALUATED ..., and using
+#   list(...) just captures the EVALUATED dots.
+# alist() doesn't evaluate values, but it doesn't return them in a clean
+#   list format, so you have to evaluate them in the current environment,
+#   within the function, after substituting the variables.
+# I think this is tricky also because you can't see what's happening in each
+#   step.
+# capturing unevaluated ... -----------------------------
+
+
+# Exercise 1: convert
+# a + b + c -> a * b * c
+subs(a + b + c, list(`+` = `*`))
+subs(a + b + c, list(`+` = quote(`*`)))
+
+# f(g(a, b), c) -> (a + b) * c
+subs(f(g(a, b), c), list(f = `*`, g = `+`))
+subs(f(g(a, b), c), list(f = quote(`*`), g = quote(`+`)))
+
+# f(a < b, c, d) -> if (a < b) c else d
+subs(f(a < b, c, d), list(f = `if`))
+subs(f(a < b, c, d), list(f = quote(`if`)))
+# Interesting that you have to convert with the symbol instead of the
+#   function itself.
+
+# Exercise 2: explain why you can't convert
+# a + b + c -> a + b * c
+
+# f(a, b) -> f(a, b, c)
+
+# f(a, b, c) -> f(a, b)
+
+
+# Exercise 3: How does pryr::named_dots() work? Read the source.
+named_dots <- function(...) {
+  args <- dots(...)
+  # Saves a list of unevaluated arguments.
+
+  nms <- names(args) %||% rep("", length(args))
+  # Names of args...? Can't find %||% operator anywhere.
+
+  missing <- nms == ""
+  # Record arguments with names that weren't supplied.
+
+  if (all(!missing)) return(args)
+  # If all of the args have names, return them.
+
+  deparse2 <- function(x) paste(deparse(x, 500L), collapse = "")
+  # Define a function that deparses it's input with a width cutoff of 500,
+  #   then collapses into a string with no spaces (I think?)
+
+  defaults <- vapply(
+    args[missing],
+    deparse2,
+    character(1), 
+    USE.NAMES = FALSE
+  )
+  # This makes a list of the arguments that are missing names, but
+  #   deparses them, so they're strings.
+
+  names(args)[missing] <- defaults
+  # Assign the deparsed arguments to the names of the missing arguments.
+
+  args
+  # Return the arguments.
+}
+# So this function basically just takes the unevaluated arguments and
+#   supplies names to any missing arguments. The names are the arguments,
+#   but deparsed. So if you say function_call(Arg1 = arg1, arg2), it'll
+#   return list(Arg1 = arg1, arg2 = arg2).
+
+
+# Excercise 1
+n1 <- function(...) {
+  dots <- named_dots(...)
+  # pryr::named_dots() doesn't evaluate any args. It calls pryr::dots(),
+  #   which doesn't evaluate any args.
+
+  letters <- mtcars
+  letters <- 'jeff'
+
+  lapply(dots, eval, parent.frame())
+  # This evaluates all the args in the parent.frame(), which I think is
+  #   the calling environment of n1, but not within the n1
+}
+n1(na.rm = TRUE, skip = 5, letters)
+nl(1, 2 + 2, mean(c(3, 5)))
+
+# Excercise 2
+# I think this is similar to quoting?
+
+# Excercise 3
+
+
+
+
+**************** Stuff not in Advanced R ***************************************
 
 
 # CHALLENGE: might want to work thru this Re local =============
@@ -4584,4 +4811,5 @@ sqlQuery(channel, 'SELECT * FROM [BEV CENSUS$] WHERE FULL NAME = Armstrong, Coli
 #   formats as well as earlier ones (provided the drivers are installed,
 #   including with 64-bit Windows R: see RODBC)
 # SQL / connections ===========================================================
+
 

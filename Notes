@@ -4689,6 +4689,123 @@ nl(1, 2 + 2, mean(c(3, 5)))
 # Excercise 3
 
 
+# EXPRESSIONS ==================================================================
+# http://adv-r.had.co.nz/Expressions.html
+
+# quote() returns an expression: an object that represents an action that
+#		can be performed by R.
+# An expression is also known as an abstract syntax tree.
+ast(y <- x * 10)
+
+# Expressions are made up of constants, names, calls, and pairlists.
+#
+# 	Constants: length one atomic vectors: a, 1, 1L, TRUE. Nothing happens
+# 		when you quote a constant! It's the same as unquoted - you're not
+# 		preventing any sort of evaluation on that object.
+#
+# 	Names or symbols: represent the name of an object rather than its value.
+# 		ast() prefixes with backtick.
+ast(x)
+ast(mean)
+# 	Calls: the action of calling a function. Calls are recursive: they can
+# 		contain constants, names, pairlists, and other calls. ast() prints ()
+# 		and then lists the children. The first child is the function being
+# 		called, and the remaining children are the function's arguments.
+ast(f())
+ast(f(1, 2))
+ast(sum(1, 2))
+ast(sum(1, mean(c(1, 2, 3))))
+ast(1 + 1)
+ast(if (x > 1) x else 1 / x)
+# Pairlists: only used in formal arguments of a function. Recursive,
+# 	similar to calls. ast() prints with []
+ast(function(x = 1, y) x) # interesting
+ast(function(x = 1, y = x * 2) {x / y})
+# Names are described as symbols and calls are described as language:
+str(quote(a))
+str(quote(a + b))
+
+# You can create call trees that contain objects other than constants,
+# 	names, calls, and pairlists.
+class_df <- substitute(class(df), list(df = data.frame(x = 10)))
+eval(class_df)
+
+
+# Excercise 1
+valid_expr <- function(element) {
+	# is.symbol # or is.name
+	# is.call
+	# is.pairlist
+	# is.atomic # or is.recursive
+	is.constant <- function(x) identical(x, substitute(x)) # Has to be substitute, so you're swapping 'x' with the value in the promise, as opposed to comparing everything to the symbol 'x'
+	test <- vapply(
+		list(is.symbol, is.call, is.pairlist, is.constant),
+		function(x) x(element),
+		logical(1)
+	)
+	any(test)
+	# is.symbol(element) | is.call(element) | is.pairlist(element) | is.constant(element)
+}
+is.constant <- function(const) { 
+  identical(const, substitute(const)) 
+} 
+is.expressable <- function(x) { 
+  is.name(x) | is.call(x) | is.pairlist(x) | is.constant(x) 
+} 
+is.expressable('jeff')
+is.expressable(1 + 1)
+is.expressable(mean)
+valid_expr('jeff')
+valid_expr(1 + 1)
+valid_expr(mean)
+
+# Excercise 2
+pryr::ast
+# Call call_tree() directly?
+
+# Excercise 3
+ast(
+	if (FALSE) {
+		TRUE
+	} else if (FALSE) {
+		TRUE
+	} else {
+		TRUE
+	}
+)
+ast(
+	if (FALSE) {
+		TRUE
+	} else {
+		if (FALSE) {
+			TRUE
+		} else {
+			TRUE
+		}
+	}
+)
+
+# Excercise 4
+ast(x + y %+% z)
+`+`(x, `%+%`(y, z)) # evals infix first, then adds to x second
+ast(x ^ y %+% z)
+`%+%`((x ^ y), z) # evals exponent first, then calls infix second
+# In between addition and exponetiation operators...
+
+# Excercise 5
+# It'd be represented as either a call, c(1, 2), or a
+# 	symbol: x <- c(1, 2) -> x
+ast('a')
+ast(1L)
+ast(1.1) # looks like doubles are stored as integers if possible.
+ast(TRUE)
+ast(1i)
+# raw vectors can't...
+
+== stopped at Names ==
+
+# EXPRESSIONS ==================================================================
+
 
 
 **************** Stuff not in Advanced R ***************************************

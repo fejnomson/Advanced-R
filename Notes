@@ -4802,9 +4802,97 @@ ast(TRUE)
 ast(1i)
 # raw vectors can't...
 
-== stopped at Names ==
 
+# Exercise 1
+g <- function(x = 20, y) {
+  x + y
+}
+formals(g)$x <- quote(expr = )
+formals(g)$y <- 10
+
+# Exercise 2
+get2 <- function(
+		arg,
+		envir = parent.frame(),
+		enclos = if (is.list(envir) || is.pairlist(envir)) parent.frame() else baseenv()
+	) {
+	eval(as.name(arg), envir = envir, enclos = enclos)
+}
+assign2 <- function(name, value, envir = parent.frame()) {
+	eval(
+		substitute(
+			symb <- val, list(symb = as.name(name),	val = value)
+		),
+		envir = envir
+	)
+}
+
+
+# Calls ------------------------------------------------------------------------
+x <- quote(read.csv("important.csv", row.names = FALSE))
+substitute_q <- function(x, env) {
+  call <- substitute(
+    substitute(y, env),
+    list(y = x)
+  )
+  eval(call)
+}
+substitute_q(x, list(read.csv = quote(write.csv))) # this is pretty crazy...
+
+x[1]
+x[[1]]
+length(x)
+names(x)
+# The length of the call minus one is the number of arguments
+y <- quote(mean(c(1:10), na.rm = TRUE))
+# I think that's why a lot of argument unpacking and NSE stuff has
+# 	something like: substitute(alist(...)[-1L]). Because the language is
+# 	a subsettable object, and you'd only want to unpack certain parts of
+# 	the expression.
+length(y) - 1
+y[-1L]
+as.list(y[-1L])
+
+# Can modify a call with $<- and [[<-
+y <- quote(read.csv("important.csv", row.names = FALSE))
+y$row.names <- TRUE # modify
+y$col.names <- FALSE # add an arg
+y[[2]] <- quote(paste0('mtcars', '.xlsx'))
+y[[2]] <- quote(paste0(filename, '.csv'))
+y[[4]] <- NULL
+y$sep <- ','
+
+# Can use [
+x[-3]
+x[-1] # This drops the function name, but it's still a function call, somehow
+
+# But manipulating by location / index is dangerous, because the same
+# 	call can have different things in different order.
+m1 <- quote(read.delim("data.txt", sep = "|"))
+m2 <- quote(read.delim(s = "|", "data.txt"))
+m3 <- quote(read.delim(file = "data.txt", , "|"))
+# But can use pryr::standardise_call to convert everything to names args
+standardise_call(m1)
+standardise_call(m2)
+standardise_call(m3)
+standardise_call(m3)$file
+standardise_call(m3)$sep
+
+# Create call from its components
+call(":", 1, 10) # creates a call
+call("mean", quote(1:10), na.rm = TRUE)
+as.call(list(quote(mean), quote(1:10)))
+
+# Exercise 1
+(a <- call("mean", 1:10))
+(b <- call("mean", quote(1:10)))
+identical(a, b)
+all.equal(a, b)
+# The second one calls quote? Something like the quoted one delays
+# 	evaluation until the call to call() is evaluated?
+# Calls ------------------------------------------------------------------------
 # EXPRESSIONS ==================================================================
+
 
 
 

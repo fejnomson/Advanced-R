@@ -4890,6 +4890,27 @@ identical(a, b)
 all.equal(a, b)
 # The second one calls quote? Something like the quoted one delays
 # 	evaluation until the call to call() is evaluated?
+
+
+# Exercise 2
+do.call2 <- function(f, args) {
+	if(!is.character(f)) f <- deparse(substitute(f))
+	eval(as.call(c(as.name(f), args)))
+}
+# The way to think about this is that you can convert a list to a call,
+# 	so you can just add the function to the list, convert to a call,
+# 	then evaluate that call.
+# You can't convert something like `mean` to a symbol using as.name, but
+# 	if you don't use as.name, you won't be able to input strings. I think
+# 	it's reasonable to convert it to a string, then convert the string to
+# 	a name, to have all bases covered.
+
+do.call2(sum, list(1, 2, NA, na.rm = TRUE))
+do.call2('mean', list(x = c(1, 2, NA), na.rm = TRUE))
+do.call2(paste, list("hi", "hello"))
+
+do.call(sum, list(1, 2, NA, na.rm = TRUE))
+do.call(mean, list(x = c(1, 2, NA), na.rm = TRUE))
 # Calls ------------------------------------------------------------------------
 # EXPRESSIONS ==================================================================
 

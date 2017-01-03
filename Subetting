@@ -1,0 +1,208 @@
+http://adv-r.had.co.nz/Subsetting.html
+
+x <- c(2.1, 4.2, 3.3, 5.4)
+
+x[c(3, 1)]
+x[order(x)]
+
+x[c(1, 1)]
+
+x[c(2.1, 2.9)]
+
+x[c(-2, -3)]
+
+y <- setNames(x, letters[1:4])
+
+y[c("d", "c", "a")]
+
+y[c("a", "a", "a")]
+
+z <- c(abc = 1, def = 2)
+
+z[c("a", "d")] # no partial matching
+
+
+a <- matrix(1:9, nrow = 3)
+colnames(a) <- c("A", "B", "C")
+a[1:2, ]
+xs <- c(T, F, T)
+ys <- c("B", "A")
+a[xs, ys] # multidim vector subsetting. [ simplify to simplest possible
+
+
+vals <- outer(1:5, 1:5, FUN = "paste", sep = ",")
+select <- matrix(ncol = 2, byrow = TRUE, c(
+  1, 1,
+  3, 1,
+  2, 4
+))
+vals[select] # use matrix to subset
+
+df <- data.frame(x = 1:3, y = 3:1, z = letters[1:3])
+df[c("x", "z")]
+
+df[, c("x", "z")]
+
+
+
+# Simplifying vs. preserving subsetting
+x <- c(a = 1, b = 2)
+x[1]
+x[[1]]
+
+
+
+# Lookup tables (character subsetting)
+x <- c("m", "f", "u", "f", "f", "m", "m")
+lookup <- c(m = "Male", f = "Female", u = NA)
+lookup[x]
+unname(lookup[x])
+c(m = "Known", f = "Known", u = "Unknown")[x]
+
+x <- c('a', 'a', 'b', 'b')
+lu <- c(a = 'apples', b = 'bananas', u = NA)
+lu[x]
+lu['a']
+lu[c('a', 'a', 'a')]
+# so lu will recycle the value correponding to the label 'a' every time
+# 	'a' occurs. It'll recycle the original vector to match the subsetting
+#     vector
+lu[c('a', 'b', 'b')]
+lu[c('u', 'u', 'u')]
+
+values <- c('Sat', 'Sun', 'Monday', 'Tues', 'Wednesday', 'Sat', 'Sun')
+lookup <- c(
+  Sat = 'Saturday',
+  Sun = 'Sunday',
+  Mon = 'Monday',
+  Tues = 'Tuesday',
+  Wed = 'Wednesday',
+  Thur = 'Thursday',
+  Fri = 'Friday'
+)
+lookup[values]
+unname(lookup[values])
+
+
+# Matching and merging by hand (integer subsetting)
+grades <- c(
+  # Data
+  1, 2, 2, 3, 1
+)
+info <- data.frame(
+  # Lookup table
+  grade = 3:1,
+  desc = c("Excellent", "Good", "Poor"),
+  fail = c(F, F, T)
+)
+
+
+vect <- c('b', 'c', 'a', 'a')
+names(vect) <- seq_along(vect)
+tbl <- c('a', 'b', 'c')
+names(tbl) <- seq_along(tbl)
+vect
+tbl
+match(vect, tbl)
+tbl[match(vect, tbl)]
+# match() returns a vector of indexes, saying where each element in table
+#     shows up in vector.
+# So it can help you go from a lookup table to a real-world data set in
+#     quick step, using indexing
+ghetto_match <- function(vect, tbl) {
+  # own implementation for intuition
+  Out <-  numeric(length(vect))
+  for (i in seq_along(tbl)) {
+    Out[which(tbl[i] == vect)] <- i
+  }
+  Out
+}
+ghetto_match(vect, tbl)
+match(vect, tbl)
+
+
+# Using match
+id <- match(grades, info$grade)
+info[
+  # So this uses match to get a vector of indexes that expand the values
+  #   from the lookup table into the vector
+  # Then it uses the property of indexing that duplicate index values will
+  #     duplicate the data at that location, to duplciate rows in the lookup
+  #     table data.frame
+  id, 
+]
+
+
+# Using rownames
+rownames(info) <- info$grade
+info[as.character(grades), ]
+# Bypasses the extra step of using match(); uses row name indexing and 
+#     duplicating property to expand into larger number of rows.
+
+desc <- c('Poor', 'Poor', 'Excellent', 'Good', 'Excellent')
+rownames(info) <- info$desc
+info[desc, ]
+# Do the same thing using a truer character field. Interesting that R
+#     silently switches between location and row.name subsetting...
+
+
+# Random samples/bootstrap (integer subsetting)
+df <- data.frame(x = rep(1:3, each = 2), y = 6:1, z = letters[1:6])
+
+# Set seed for reproducibility
+set.seed(10)
+
+# Randomly reorder
+df[sample(nrow(df)), ]
+df[sample(nrow(df), 6, rep = T), ]
+
+
+# Expanding aggregated counts (integer subsetting)
+df <- data.frame(x = c(2, 4, 1), y = c(9, 11, 6), n = c(3, 5, 1))
+rep(1:nrow(df), df$n)
+df[rep(1:nrow(df), df$n), ]
+# This is in the spirit of transform() in pandas; collapse to sum summary
+#     stat, but retain shape of the original
+collapsed <- data.frame(
+  facility = c('Chicago', 'Chicago', 'Chicago', 'New York', 'New York'),
+  title = c('Associate', 'Partner', 'Paralegal', 'Associate', 'Partner'),
+  nrows = c(2, 4, 1, 3, 1)
+)
+collapsed[c(1, 1, 2, 2, 2, 2, 3, 4, 4, 4, 5), ]
+rep(c(1, 2, 3), c(1, 2, 3))
+collapsed[rep(1:nrow(collapsed), collapsed[['nrows']]), ]
+
+
+# Removing columns from data frames (character subsetting)
+df <- data.frame(x = 1:3, y = 3:1, z = letters[1:3])
+df[setdiff(names(df), "z")]
+# I like explicitly using set operations for field subsetting
+
+
+# Boolean algebra vs. sets (logical & integer subsetting)
+x <- sample(10) < 4
+which(x)
+unwhich <- function(x, n) {
+  # The integers that are specified as true / locations where true should
+  #     be located are set to TRUE
+  out <- rep_len(FALSE, n)
+  out[x] <- TRUE
+  out
+}
+unwhich(which(x), 10)
+
+
+x1 <- 1:10 %% 2 == 0
+x2 <- which(x1)
+y1 <- 1:10 %% 5 == 0
+y2 <- which(y1)
+x1 & y1
+intersect(x2, y2)
+x1 | y1
+union(x2, y2)
+x1 & !y1
+setdiff(x2, y2)
+xor(x1, y1)
+setdiff(union(x2, y2), intersect(x2, y2))
+# Basically go with boolean unless you need the location of something (e.g.
+#     first or last true value)

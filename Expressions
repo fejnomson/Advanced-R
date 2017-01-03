@@ -1,0 +1,236 @@
+https://github.com/fejnomson/Advanced-R/blob/master/Notes
+
+
+# EXPRESSIONS ==================================================================
+# http://adv-r.had.co.nz/Expressions.html
+
+# quote() returns an expression: an object that represents an action that
+#		can be performed by R.
+# An expression is also known as an abstract syntax tree.
+ast(y <- x * 10)
+
+# Expressions are made up of constants, names, calls, and pairlists.
+#
+# 	Constants: length one atomic vectors: a, 1, 1L, TRUE. Nothing happens
+# 		when you quote a constant! It's the same as unquoted - you're not
+# 		preventing any sort of evaluation on that object.
+#
+# 	Names or symbols: represent the name of an object rather than its value.
+# 		ast() prefixes with backtick.
+ast(x)
+ast(mean)
+# 	Calls: the action of calling a function. Calls are recursive: they can
+# 		contain constants, names, pairlists, and other calls. ast() prints ()
+# 		and then lists the children. The first child is the function being
+# 		called, and the remaining children are the function's arguments.
+ast(f())
+ast(f(1, 2))
+ast(sum(1, 2))
+ast(sum(1, mean(c(1, 2, 3))))
+ast(1 + 1)
+ast(if (x > 1) x else 1 / x)
+# Pairlists: only used in formal arguments of a function. Recursive,
+# 	similar to calls. ast() prints with []
+ast(function(x = 1, y) x) # interesting
+ast(function(x = 1, y = x * 2) {x / y})
+# Names are described as symbols and calls are described as language:
+str(quote(a))
+str(quote(a + b))
+
+# You can create call trees that contain objects other than constants,
+# 	names, calls, and pairlists.
+class_df <- substitute(class(df), list(df = data.frame(x = 10)))
+eval(class_df)
+
+
+# Excercise 1
+valid_expr <- function(element) {
+	# is.symbol # or is.name
+	# is.call
+	# is.pairlist
+	# is.atomic # or is.recursive
+	is.constant <- function(x) identical(x, substitute(x)) # Has to be substitute, so you're swapping 'x' with the value in the promise, as opposed to comparing everything to the symbol 'x'
+	test <- vapply(
+		list(is.symbol, is.call, is.pairlist, is.constant),
+		function(x) x(element),
+		logical(1)
+	)
+	any(test)
+	# is.symbol(element) | is.call(element) | is.pairlist(element) | is.constant(element)
+}
+is.constant <- function(const) { 
+  identical(const, substitute(const)) 
+} 
+is.expressable <- function(x) { 
+  is.name(x) | is.call(x) | is.pairlist(x) | is.constant(x) 
+} 
+is.expressable('jeff')
+is.expressable(1 + 1)
+is.expressable(mean)
+valid_expr('jeff')
+valid_expr(1 + 1)
+valid_expr(mean)
+
+# Excercise 2
+pryr::ast
+# Call call_tree() directly?
+
+# Excercise 3
+ast(
+	if (FALSE) {
+		TRUE
+	} else if (FALSE) {
+		TRUE
+	} else {
+		TRUE
+	}
+)
+ast(
+	if (FALSE) {
+		TRUE
+	} else {
+		if (FALSE) {
+			TRUE
+		} else {
+			TRUE
+		}
+	}
+)
+
+# Excercise 4
+ast(x + y %+% z)
+`+`(x, `%+%`(y, z)) # evals infix first, then adds to x second
+ast(x ^ y %+% z)
+`%+%`((x ^ y), z) # evals exponent first, then calls infix second
+# In between addition and exponetiation operators...
+
+# Excercise 5
+# It'd be represented as either a call, c(1, 2), or a
+# 	symbol: x <- c(1, 2) -> x
+ast('a')
+ast(1L)
+ast(1.1) # looks like doubles are stored as integers if possible.
+ast(TRUE)
+ast(1i)
+# raw vectors can't...
+
+
+# Exercise 1
+g <- function(x = 20, y) {
+  x + y
+}
+formals(g)$x <- quote(expr = )
+formals(g)$y <- 10
+
+# Exercise 2
+get2 <- function(
+		arg,
+		envir = parent.frame(),
+		enclos = if (is.list(envir) || is.pairlist(envir)) parent.frame() else baseenv()
+	) {
+	eval(as.name(arg), envir = envir, enclos = enclos)
+}
+assign2 <- function(name, value, envir = parent.frame()) {
+	eval(
+		substitute(
+			symb <- val, list(symb = as.name(name),	val = value)
+		),
+		envir = envir
+	)
+}
+
+
+# Calls ------------------------------------------------------------------------
+x <- quote(read.csv("important.csv", row.names = FALSE))
+substitute_q <- function(x, env) {
+  call <- substitute(
+    substitute(y, env),
+    list(y = x)
+  )
+  eval(call)
+}
+substitute_q(x, list(read.csv = quote(write.csv))) # this is pretty crazy...
+
+x[1]
+x[[1]]
+length(x)
+names(x)
+# The length of the call minus one is the number of arguments
+y <- quote(mean(c(1:10), na.rm = TRUE))
+# I think that's why a lot of argument unpacking and NSE stuff has
+# 	something like: substitute(alist(...)[-1L]). Because the language is
+# 	a subsettable object, and you'd only want to unpack certain parts of
+# 	the expression.
+length(y) - 1
+y[-1L]
+as.list(y[-1L])
+
+# Can modify a call with $<- and [[<-
+y <- quote(read.csv("important.csv", row.names = FALSE))
+y$row.names <- TRUE # modify
+y$col.names <- FALSE # add an arg
+y[[2]] <- quote(paste0('mtcars', '.xlsx'))
+y[[2]] <- quote(paste0(filename, '.csv'))
+y[[4]] <- NULL
+y$sep <- ','
+
+# Can use [
+x[-3]
+x[-1] # This drops the function name, but it's still a function call, somehow
+
+# But manipulating by location / index is dangerous, because the same
+# 	call can have different things in different order.
+m1 <- quote(read.delim("data.txt", sep = "|"))
+m2 <- quote(read.delim(s = "|", "data.txt"))
+m3 <- quote(read.delim(file = "data.txt", , "|"))
+# But can use pryr::standardise_call to convert everything to names args
+standardise_call(m1)
+standardise_call(m2)
+standardise_call(m3)
+standardise_call(m3)$file
+standardise_call(m3)$sep
+
+# Create call from its components
+call(":", 1, 10) # creates a call
+call("mean", quote(1:10), na.rm = TRUE)
+as.call(list(quote(mean), quote(1:10)))
+
+# Exercise 1
+(a <- call("mean", 1:10))
+(b <- call("mean", quote(1:10)))
+identical(a, b)
+all.equal(a, b)
+# The second one calls quote? Something like the quoted one delays
+# 	evaluation until the call to call() is evaluated?
+
+
+# Exercise 2
+do.call2 <- function(f, args) {
+	if(!is.character(f)) f <- deparse(substitute(f))
+	eval(as.call(c(as.name(f), args)))
+}
+# The way to think about this is that you can convert a list to a call,
+# 	so you can just add the function to the list, convert to a call,
+# 	then evaluate that call.
+# You can't convert something like `mean` to a symbol using as.name, but
+# 	if you don't use as.name, you won't be able to input strings. I think
+# 	it's reasonable to convert it to a string, then convert the string to
+# 	a name, to have all bases covered.
+
+do.call2(sum, list(1, 2, NA, na.rm = TRUE))
+do.call2('mean', list(x = c(1, 2, NA), na.rm = TRUE))
+do.call2(paste, list("hi", "hello"))
+
+do.call(sum, list(1, 2, NA, na.rm = TRUE))
+do.call(mean, list(x = c(1, 2, NA), na.rm = TRUE))
+
+
+
+# STOPPED HERE:
+# Implement a pure R version of do.call().
+
+
+
+# Calls ------------------------------------------------------------------------
+# EXPRESSIONS ==================================================================
+
